@@ -9,7 +9,7 @@ export default async function DashboardLayout({
   await requireAuth();
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-black">
       <Sidebar />
       <main className="pl-64">
         <div className="mx-auto max-w-7xl px-8 py-8">{children}</div>

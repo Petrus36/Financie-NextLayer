@@ -14,10 +14,15 @@ Finančný prehľad pre firmu NextLayer Studio. Spravujte klientov, zakázky, v�
 
 ## Spustenie
 
+1. Skopírujte Neon connection string do `.env`:
+   - `DATABASE_URL` — pooled (pre aplikáciu)
+   - `DATABASE_URL_UNPOOLED` — direct (pre migrácie)
+   - `AUTH_SECRET` — náhodný reťazec pre NextAuth
+
 ```bash
 npm install
-npx prisma migrate dev
-npx tsx prisma/seed.ts
+npx prisma db push
+npm run db:seed
 npm run dev
 ```
 
@@ -34,6 +39,6 @@ Otvorte [http://localhost:3000](http://localhost:3000)
 - Next.js 16 (App Router)
 - TypeScript
 - Tailwind CSS
-- Prisma + SQLite
+- Prisma + Neon PostgreSQL
 - NextAuth.js
 - Recharts

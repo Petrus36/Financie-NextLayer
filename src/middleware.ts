@@ -10,6 +10,7 @@ export const config = {
     "/projects/:path*",
     "/expenses/:path*",
     "/income/:path*",
+    "/statistics/:path*",
     "/login",
   ],
 };

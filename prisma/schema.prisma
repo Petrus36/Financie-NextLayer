@@ -4,7 +4,7 @@ generator client {
 }
 
 datasource db {
-  provider = "sqlite"
+  provider = "postgresql"
 }
 
 model User {
@@ -27,6 +27,7 @@ model Client {
 
   projects    Project[]
   maintenance MaintenanceContract[]
+  retainers   MonthlyRetainer[]
 }
 
 model Project {
@@ -43,12 +44,25 @@ model Project {
   client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   expenses    ProjectExpense[]
+  payments    ProjectPayment[]
   maintenance MaintenanceContract?
+  retainers   MonthlyRetainer[]
 }
 
 enum ProjectStatus {
   ACTIVE
   DELIVERED
+}
+
+model ProjectPayment {
+  id          String   @id @default(cuid())
+  description String
+  amount      Float
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model ProjectExpense {
@@ -77,15 +91,35 @@ model MaintenanceContract {
   project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
+model MonthlyRetainer {
+  id               String   @id @default(cuid())
+  title            String
+  monthlyAmount    Float
+  deliverableLabel String   @default("videí")
+  targetCount      Int
+  completedCount   Int      @default(0)
+  active           Boolean  @default(true)
+  startDate        DateTime @default(now())
+  periodStart      DateTime @default(now())
+  notes            String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  clientId  String
+  client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId String?
+  project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+}
+
 model FirmExpense {
-  id          String          @id @default(cuid())
+  id          String      @id @default(cuid())
   description String
   amount      Float
-  type        ExpenseType     @default(ONE_TIME)
+  type        ExpenseType @default(ONE_TIME)
   category    String?
-  date        DateTime        @default(now())
-  active      Boolean         @default(true)
-  createdAt   DateTime        @default(now())
+  date        DateTime    @default(now())
+  active      Boolean     @default(true)
+  createdAt   DateTime    @default(now())
 }
 
 enum ExpenseType {

@@ -1,54 +1,81 @@
+import { Suspense } from "react";
 import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  Users,
   Briefcase,
   Wrench,
 } from "lucide-react";
-import { getStatistics, getDashboardOverview, getCurrentMonthFilter } from "@/lib/statistics";
+import { getStatistics } from "@/lib/statistics";
 import { formatCurrency } from "@/lib/utils";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import Link from "next/link";
+import { PeriodFilter } from "@/components/dashboard/period-filter";
+import { FinanceChart } from "@/components/dashboard/finance-chart";
 
-export default async function DashboardPage() {
-  const filter = getCurrentMonthFilter();
-  const periodLabel = new Intl.DateTimeFormat("sk-SK", {
-    month: "long",
-    year: "numeric",
-  }).format(new Date(filter.year, filter.month! - 1));
+export default async function StatisticsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ year?: string; month?: string; view?: string }>;
+}) {
+  const params = await searchParams;
+  const now = new Date();
+  const view = params.view === "year" ? "year" : "month";
+  const year = params.year ? parseInt(params.year) : now.getFullYear();
+  const month =
+    view === "month"
+      ? params.month
+        ? parseInt(params.month)
+        : now.getMonth() + 1
+      : undefined;
 
-  const [stats, overview] = await Promise.all([
-    getStatistics(filter),
-    getDashboardOverview(),
-  ]);
+  const stats = await getStatistics({ year, month });
+
+  const periodLabel =
+    view === "month" && month
+      ? new Intl.DateTimeFormat("sk-SK", {
+          month: "long",
+          year: "numeric",
+        }).format(new Date(year, month - 1))
+      : String(year);
+
+  const chartTitle =
+    view === "month"
+      ? `Denný vývoj — ${periodLabel}`
+      : `Mesačný vývoj — ${year}`;
 
   return (
     <div className="space-y-8">
-      <div>
-        <h1 className="text-2xl font-bold text-zinc-100">Prehľad</h1>
-        <p className="text-sm text-muted">
-          Aktuálny mesiac — {periodLabel}
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-bold text-zinc-100">Štatistiky</h1>
+          <p className="text-sm text-muted">Finančný prehľad — {periodLabel}</p>
+        </div>
+        <Suspense fallback={null}>
+          <PeriodFilter
+            basePath="/statistics"
+            year={year}
+            month={month}
+            view={view}
+          />
+        </Suspense>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Príjmy tento mesiac"
+          title="Celkové príjmy"
           value={formatCurrency(stats.totalIncome)}
           icon={<TrendingUp className="h-5 w-5" />}
           trend="up"
         />
         <StatCard
-          title="Výdavky tento mesiac"
+          title="Celkové výdavky"
           value={formatCurrency(stats.totalExpenses)}
           icon={<TrendingDown className="h-5 w-5" />}
           trend="down"
         />
         <StatCard
-          title="Zisk tento mesiac"
+          title="Čistý zisk"
           value={formatCurrency(stats.profit)}
           subtitle={stats.profit >= 0 ? "Kladný výsledok" : "Záporný výsledok"}
           icon={<DollarSign className="h-5 w-5" />}
@@ -62,33 +89,19 @@ export default async function DashboardPage() {
         />
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard
-          title="Klienti celkom"
-          value={String(overview.clientCount)}
-          icon={<Users className="h-5 w-5" />}
-        />
-        <StatCard
-          title="Aktívne zakázky"
-          value={String(overview.activeProjects)}
-          icon={<Briefcase className="h-5 w-5" />}
-        />
-        <StatCard
-          title="Príjmy z projektov"
-          value={formatCurrency(stats.projectRevenue)}
-          subtitle={`+ ${formatCurrency(stats.maintenanceRevenue + stats.retainerRevenue)} mesačne`}
-        />
-        <StatCard
-          title="Ostatné príjmy"
-          value={formatCurrency(stats.firmIncomeTotal)}
-          icon={<Wrench className="h-5 w-5" />}
-        />
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>{chartTitle}</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <FinanceChart data={stats.chartBreakdown} />
+        </CardContent>
+      </Card>
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Príjmy — {periodLabel}</CardTitle>
+            <CardTitle>Rozdelenie príjmov</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
@@ -126,7 +139,7 @@ export default async function DashboardPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Výdavky — {periodLabel}</CardTitle>
+            <CardTitle>Rozdelenie výdavkov</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             <div className="flex items-center justify-between">
@@ -151,35 +164,44 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      {stats.recentDelivered.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle>Odovzdané tento mesiac</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-3">
-              {stats.recentDelivered.map((project) => (
-                <Link
-                  key={project.id}
-                  href={`/projects/${project.id}`}
-                  className="flex items-center justify-between rounded-lg border border-border p-3 transition-colors hover:bg-surface-elevated/30"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-zinc-100">{project.title}</p>
-                    <p className="text-xs text-muted">{project.client.name}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm font-medium text-brand">
-                      {formatCurrency(project.price)}
-                    </p>
-                    <Badge variant="success">Odovzdaná</Badge>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </CardContent>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Card className="p-4">
+          <div className="flex items-center gap-2 text-muted">
+            <Briefcase className="h-4 w-4" />
+            <p className="text-xs">Príjmy z projektov</p>
+          </div>
+          <p className="mt-2 text-xl font-bold text-brand">
+            {formatCurrency(stats.projectRevenue)}
+          </p>
         </Card>
-      )}
+        <Card className="p-4">
+          <div className="flex items-center gap-2 text-muted">
+            <Wrench className="h-4 w-4" />
+            <p className="text-xs">Mesačná údržba</p>
+          </div>
+          <p className="mt-2 text-xl font-bold text-brand">
+            {formatCurrency(stats.maintenanceRevenue)}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-2 text-muted">
+            <Briefcase className="h-4 w-4" />
+            <p className="text-xs">Mesačné zákazky</p>
+          </div>
+          <p className="mt-2 text-xl font-bold text-brand">
+            {formatCurrency(stats.retainerRevenue)}
+          </p>
+        </Card>
+        <Card className="p-4">
+          <div className="flex items-center gap-2 text-muted">
+            <TrendingUp className="h-4 w-4" />
+            <p className="text-xs">Ostatné príjmy</p>
+          </div>
+          <p className="mt-2 text-xl font-bold text-brand">
+            {formatCurrency(stats.firmIncomeTotal)}
+          </p>
+        </Card>
+      </div>
     </div>
   );
 }

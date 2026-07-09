@@ -48,7 +48,7 @@ export default async function ExpensesPage() {
                   {expenses.map((expense) => (
                     <div
                       key={expense.id}
-                      className="flex items-center justify-between rounded-lg border border-zinc-800 p-3"
+                      className="flex items-center justify-between rounded-lg border border-border p-3"
                     >
                       <div>
                         <div className="flex items-center gap-2">
@@ -64,7 +64,7 @@ export default async function ExpensesPage() {
                             <Badge variant="danger">Neaktívne</Badge>
                           )}
                         </div>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-muted">
                           {formatDate(expense.date)}
                           {expense.category && ` · ${expense.category}`}
                         </p>

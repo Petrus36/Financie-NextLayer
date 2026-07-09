@@ -53,13 +53,13 @@ export default async function ClientsPage() {
 
             return (
               <Link key={client.id} href={`/clients/${client.id}`}>
-                <Card className="transition-all hover:border-violet-600/50 hover:shadow-lg hover:shadow-violet-600/5">
+                <Card className="transition-all hover:border-brand/50 hover:shadow-lg hover:shadow-brand/5">
                   <CardContent className="p-5">
                     <div className="flex items-start justify-between">
                       <div>
                         <h3 className="font-semibold text-zinc-100">{client.name}</h3>
                         {client.company && (
-                          <p className="mt-0.5 flex items-center gap-1 text-xs text-zinc-500">
+                          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted">
                             <Building2 className="h-3 w-3" />
                             {client.company}
                           </p>
@@ -85,17 +85,17 @@ export default async function ClientsPage() {
                       )}
                     </div>
 
-                    <div className="mt-4 flex items-center justify-between border-t border-zinc-800 pt-3">
+                    <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
                       <div>
-                        <p className="text-xs text-zinc-500">Hodnota projektov</p>
+                        <p className="text-xs text-muted">Hodnota projektov</p>
                         <p className="text-sm font-medium text-zinc-200">
                           {formatCurrency(totalValue)}
                         </p>
                       </div>
                       {maintenanceTotal > 0 && (
                         <div className="text-right">
-                          <p className="text-xs text-zinc-500">Údržba/mes.</p>
-                          <p className="text-sm font-medium text-emerald-400">
+                          <p className="text-xs text-muted">Údržba/mes.</p>
+                          <p className="text-sm font-medium text-brand">
                             {formatCurrency(maintenanceTotal)}
                           </p>
                         </div>

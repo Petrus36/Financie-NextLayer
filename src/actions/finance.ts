@@ -95,9 +95,40 @@ export async function deleteProjectExpense(expenseId: string, projectId: string)
   revalidatePath(`/projects/${projectId}`);
 }
 
+export async function addProjectPayment(projectId: string, formData: FormData) {
+  const description = formData.get("description") as string;
+  const amount = parseFloat(formData.get("amount") as string);
+  const dateStr = formData.get("date") as string;
+
+  if (!description?.trim() || isNaN(amount) || amount <= 0) {
+    throw new Error("Popis a suma sú povinné");
+  }
+
+  await prisma.projectPayment.create({
+    data: {
+      description: description.trim(),
+      amount,
+      date: dateStr ? new Date(dateStr) : new Date(),
+      projectId,
+    },
+  });
+
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/statistics");
+}
+
+export async function deleteProjectPayment(paymentId: string, projectId: string) {
+  await prisma.projectPayment.delete({ where: { id: paymentId } });
+  revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/statistics");
+}
+
 export async function deliverProject(projectId: string, formData: FormData) {
   const maintenanceAmount = formData.get("maintenanceAmount") as string;
   const maintenanceNotes = (formData.get("maintenanceNotes") as string) || null;
+  const deliveryPayment = formData.get("deliveryPayment") as string;
 
   const project = await prisma.project.update({
     where: { id: projectId },
@@ -106,6 +137,17 @@ export async function deliverProject(projectId: string, formData: FormData) {
       deliveredAt: new Date(),
     },
   });
+
+  if (deliveryPayment && parseFloat(deliveryPayment) > 0) {
+    await prisma.projectPayment.create({
+      data: {
+        description: "Odovzdanie projektu",
+        amount: parseFloat(deliveryPayment),
+        date: new Date(),
+        projectId: project.id,
+      },
+    });
+  }
 
   if (maintenanceAmount && parseFloat(maintenanceAmount) > 0) {
     await prisma.maintenanceContract.create({
@@ -121,6 +163,7 @@ export async function deliverProject(projectId: string, formData: FormData) {
   revalidatePath(`/projects/${projectId}`);
   revalidatePath(`/clients/${project.clientId}`);
   revalidatePath("/dashboard");
+  revalidatePath("/statistics");
 }
 
 export async function createFirmExpense(formData: FormData) {
@@ -201,4 +244,98 @@ export async function toggleMaintenance(id: string, active: boolean) {
 
   revalidatePath("/dashboard");
   revalidatePath("/clients");
+}
+
+export async function createRetainer(
+  clientId: string,
+  projectId: string | null,
+  formData: FormData
+) {
+  const title = formData.get("title") as string;
+  const monthlyAmount = parseFloat(formData.get("monthlyAmount") as string);
+  const targetCount = parseInt(formData.get("targetCount") as string, 10);
+  const deliverableLabel =
+    (formData.get("deliverableLabel") as string)?.trim() || "videí";
+
+  if (!title?.trim() || isNaN(monthlyAmount) || isNaN(targetCount) || targetCount < 1) {
+    throw new Error("Vyplňte názov, sumu a počet");
+  }
+
+  await prisma.monthlyRetainer.create({
+    data: {
+      title: title.trim(),
+      monthlyAmount,
+      targetCount,
+      deliverableLabel,
+      clientId,
+      projectId: projectId || undefined,
+      periodStart: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
+    },
+  });
+
+  revalidatePath(`/clients/${clientId}`);
+  if (projectId) revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/statistics");
+}
+
+export async function incrementRetainer(id: string) {
+  const retainer = await prisma.monthlyRetainer.findUnique({ where: { id } });
+  if (!retainer || !retainer.active) return;
+
+  await prisma.monthlyRetainer.update({
+    where: { id },
+    data: {
+      completedCount: Math.min(retainer.completedCount + 1, retainer.targetCount),
+    },
+  });
+
+  revalidateRetainerPaths(retainer.clientId, retainer.projectId);
+}
+
+export async function decrementRetainer(id: string) {
+  const retainer = await prisma.monthlyRetainer.findUnique({ where: { id } });
+  if (!retainer) return;
+
+  await prisma.monthlyRetainer.update({
+    where: { id },
+    data: { completedCount: Math.max(retainer.completedCount - 1, 0) },
+  });
+
+  revalidateRetainerPaths(retainer.clientId, retainer.projectId);
+}
+
+export async function resetRetainerPeriod(id: string) {
+  const now = new Date();
+  const periodStart = new Date(now.getFullYear(), now.getMonth(), 1);
+
+  const retainer = await prisma.monthlyRetainer.update({
+    where: { id },
+    data: { completedCount: 0, periodStart },
+  });
+
+  revalidateRetainerPaths(retainer.clientId, retainer.projectId);
+}
+
+export async function toggleRetainer(id: string, active: boolean) {
+  const retainer = await prisma.monthlyRetainer.update({
+    where: { id },
+    data: { active },
+  });
+
+  revalidateRetainerPaths(retainer.clientId, retainer.projectId);
+  revalidatePath("/dashboard");
+  revalidatePath("/statistics");
+}
+
+export async function deleteRetainer(id: string) {
+  const retainer = await prisma.monthlyRetainer.delete({ where: { id } });
+  revalidateRetainerPaths(retainer.clientId, retainer.projectId);
+  revalidatePath("/dashboard");
+  revalidatePath("/statistics");
+}
+
+function revalidateRetainerPaths(clientId: string, projectId: string | null) {
+  revalidatePath(`/clients/${clientId}`);
+  if (projectId) revalidatePath(`/projects/${projectId}`);
 }

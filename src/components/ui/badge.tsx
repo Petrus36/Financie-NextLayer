@@ -1,11 +1,11 @@
 import { cn } from "@/lib/utils";
 
 const variants = {
-  default: "bg-zinc-800 text-zinc-300",
-  success: "bg-emerald-600/20 text-emerald-400 border border-emerald-600/30",
+  default: "bg-surface-elevated text-zinc-300",
+  success: "bg-brand-muted text-brand border border-brand/30",
   warning: "bg-amber-600/20 text-amber-400 border border-amber-600/30",
   danger: "bg-red-600/20 text-red-400 border border-red-600/30",
-  info: "bg-violet-600/20 text-violet-400 border border-violet-600/30",
+  info: "bg-brand-muted text-brand border border-brand/30",
 };
 
 export function Badge({

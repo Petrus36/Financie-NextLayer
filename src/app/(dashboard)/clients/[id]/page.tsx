@@ -2,10 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Plus, Mail, Phone, Building2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
+import { syncRetainerPeriods } from "@/lib/retainers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import { RetainerSection } from "@/components/retainers/retainer-section";
 
 export default async function ClientDetailPage({
   params,
@@ -14,14 +16,17 @@ export default async function ClientDetailPage({
 }) {
   const { id } = await params;
 
+  await syncRetainerPeriods({ clientId: id });
+
   const client = await prisma.client.findUnique({
     where: { id },
     include: {
       projects: {
-        include: { expenses: true, maintenance: true },
+        include: { expenses: true, payments: true, maintenance: true },
         orderBy: { createdAt: "desc" },
       },
       maintenance: { where: { active: true }, include: { project: true } },
+      retainers: { where: { active: true }, orderBy: { createdAt: "desc" } },
     },
   });
 
@@ -67,7 +72,7 @@ export default async function ClientDetailPage({
             )}
           </div>
           {client.notes && (
-            <p className="mt-2 text-sm text-zinc-500">{client.notes}</p>
+            <p className="mt-2 text-sm text-muted">{client.notes}</p>
           )}
         </div>
         <Link href={`/clients/${id}/projects/new`}>
@@ -80,16 +85,16 @@ export default async function ClientDetailPage({
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card className="p-4">
-          <p className="text-xs text-zinc-500">Celková hodnota</p>
+          <p className="text-xs text-muted">Celková hodnota</p>
           <p className="text-xl font-bold text-zinc-100">{formatCurrency(totalRevenue)}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-zinc-500">Výdavky na projekty</p>
+          <p className="text-xs text-muted">Výdavky na projekty</p>
           <p className="text-xl font-bold text-red-400">{formatCurrency(totalExpenses)}</p>
         </Card>
         <Card className="p-4">
-          <p className="text-xs text-zinc-500">Zisk z klienta</p>
-          <p className="text-xl font-bold text-emerald-400">
+          <p className="text-xs text-muted">Zisk z klienta</p>
+          <p className="text-xl font-bold text-brand">
             {formatCurrency(totalRevenue - totalExpenses)}
           </p>
         </Card>
@@ -104,13 +109,13 @@ export default async function ClientDetailPage({
             {client.maintenance.map((m) => (
               <div
                 key={m.id}
-                className="flex items-center justify-between rounded-lg border border-zinc-800 p-3"
+                className="flex items-center justify-between rounded-lg border border-border p-3"
               >
                 <div>
                   <p className="text-sm text-zinc-200">{m.project.title}</p>
-                  <p className="text-xs text-zinc-500">Od {formatDate(m.startDate)}</p>
+                  <p className="text-xs text-muted">Od {formatDate(m.startDate)}</p>
                 </div>
-                <p className="text-sm font-medium text-emerald-400">
+                <p className="text-sm font-medium text-brand">
                   {formatCurrency(m.monthlyAmount)}/mes.
                 </p>
               </div>
@@ -118,6 +123,8 @@ export default async function ClientDetailPage({
           </CardContent>
         </Card>
       )}
+
+      <RetainerSection clientId={id} retainers={client.retainers} />
 
       <Card>
         <CardHeader>
@@ -129,7 +136,7 @@ export default async function ClientDetailPage({
               Zatiaľ žiadne zakázky.{" "}
               <Link
                 href={`/clients/${id}/projects/new`}
-                className="text-violet-400 hover:underline"
+                className="text-brand hover:underline"
               >
                 Vytvoriť prvú
               </Link>
@@ -138,13 +145,14 @@ export default async function ClientDetailPage({
             <div className="space-y-2">
               {client.projects.map((project) => {
                 const expenses = project.expenses.reduce((s, e) => s + e.amount, 0);
+                const paid = project.payments.reduce((s, p) => s + p.amount, 0);
                 const profit = project.price - expenses;
 
                 return (
                   <Link
                     key={project.id}
                     href={`/projects/${project.id}`}
-                    className="flex items-center justify-between rounded-lg border border-zinc-800 p-4 transition-colors hover:bg-zinc-800/30"
+                    className="flex items-center justify-between rounded-lg border border-border p-4 transition-colors hover:bg-surface-elevated/30"
                   >
                     <div>
                       <div className="flex items-center gap-2">
@@ -158,8 +166,13 @@ export default async function ClientDetailPage({
                         </Badge>
                       </div>
                       {project.description && (
-                        <p className="mt-1 text-xs text-zinc-500 line-clamp-1">
+                        <p className="mt-1 text-xs text-muted line-clamp-1">
                           {project.description}
+                        </p>
+                      )}
+                      {paid > 0 && paid < project.price && (
+                        <p className="mt-1 text-xs text-amber-400">
+                          Zaplatené {formatCurrency(paid)} / {formatCurrency(project.price)}
                         </p>
                       )}
                     </div>
@@ -167,7 +180,7 @@ export default async function ClientDetailPage({
                       <p className="text-sm font-medium text-zinc-100">
                         {formatCurrency(project.price)}
                       </p>
-                      <p className="text-xs text-emerald-400">
+                      <p className="text-xs text-brand">
                         Zisk: {formatCurrency(profit)}
                       </p>
                     </div>

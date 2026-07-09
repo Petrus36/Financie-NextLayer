@@ -1,7 +1,7 @@
 "use client";
 
-import { Button } from "@/components/ui/button";
 import { Power } from "lucide-react";
+import { Button } from "@/components/ui/button";
 
 export function ToggleActiveButton({
   id,
@@ -20,7 +20,7 @@ export function ToggleActiveButton({
       title={active ? "Deaktivovať" : "Aktivovať"}
     >
       <Power
-        className={`h-3.5 w-3.5 ${active ? "text-emerald-400" : "text-zinc-500"}`}
+        className={`h-3.5 w-3.5 ${active ? "text-brand" : "text-muted"}`}
       />
     </Button>
   );

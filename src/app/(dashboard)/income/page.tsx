@@ -39,17 +39,17 @@ export default async function IncomePage() {
                   {incomes.map((income) => (
                     <div
                       key={income.id}
-                      className="flex items-center justify-between rounded-lg border border-zinc-800 p-3"
+                      className="flex items-center justify-between rounded-lg border border-border p-3"
                     >
                       <div>
                         <p className="text-sm text-zinc-200">{income.description}</p>
-                        <p className="text-xs text-zinc-500">
+                        <p className="text-xs text-muted">
                           {formatDate(income.date)}
                           {income.category && ` · ${income.category}`}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium text-emerald-400">
+                        <span className="text-sm font-medium text-brand">
                           +{formatCurrency(income.amount)}
                         </span>
                         <DeleteItemButton

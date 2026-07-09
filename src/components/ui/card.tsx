@@ -10,7 +10,7 @@ export function Card({
   return (
     <div
       className={cn(
-        "rounded-xl border border-zinc-800 bg-zinc-900/40 backdrop-blur-sm",
+        "rounded-xl border border-border bg-surface-elevated/80 backdrop-blur-sm",
         className
       )}
     >
@@ -27,7 +27,7 @@ export function CardHeader({
   children: React.ReactNode;
 }) {
   return (
-    <div className={cn("px-6 py-4 border-b border-zinc-800", className)}>
+    <div className={cn("px-6 py-4 border-b border-border", className)}>
       {children}
     </div>
   );
