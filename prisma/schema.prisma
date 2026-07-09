@@ -1,0 +1,103 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  password  String
+  createdAt DateTime @default(now())
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  company   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  projects    Project[]
+  maintenance MaintenanceContract[]
+}
+
+model Project {
+  id          String        @id @default(cuid())
+  title       String
+  description String?
+  price       Float
+  status      ProjectStatus @default(ACTIVE)
+  deliveredAt DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  expenses    ProjectExpense[]
+  maintenance MaintenanceContract?
+}
+
+enum ProjectStatus {
+  ACTIVE
+  DELIVERED
+}
+
+model ProjectExpense {
+  id          String   @id @default(cuid())
+  description String
+  amount      Float
+  category    String?
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model MaintenanceContract {
+  id            String   @id @default(cuid())
+  monthlyAmount Float
+  startDate     DateTime @default(now())
+  active        Boolean  @default(true)
+  notes         String?
+  createdAt     DateTime @default(now())
+
+  clientId  String
+  client    Client  @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId String  @unique
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model FirmExpense {
+  id          String          @id @default(cuid())
+  description String
+  amount      Float
+  type        ExpenseType     @default(ONE_TIME)
+  category    String?
+  date        DateTime        @default(now())
+  active      Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+}
+
+enum ExpenseType {
+  ONE_TIME
+  MONTHLY
+}
+
+model FirmIncome {
+  id          String   @id @default(cuid())
+  description String
+  amount      Float
+  date        DateTime @default(now())
+  category    String?
+  createdAt   DateTime @default(now())
+}
