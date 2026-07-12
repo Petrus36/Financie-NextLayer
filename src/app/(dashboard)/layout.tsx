@@ -1,6 +1,8 @@
 import { requireAuth } from "@/lib/session";
 import { Sidebar } from "@/components/layout/sidebar";
 
+export const dynamic = "force-dynamic";
+
 export default async function DashboardLayout({
   children,
 }: {
