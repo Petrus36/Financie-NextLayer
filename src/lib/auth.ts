@@ -3,10 +3,19 @@ import Credentials from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import { authConfig } from "@/lib/auth.config";
+import { resolveAuthSecret } from "@/lib/env";
+
+const authSecret = resolveAuthSecret();
+
+if (!authSecret && process.env.NODE_ENV === "production") {
+  console.error(
+    "AUTH_SECRET is missing. Add it in Vercel → Settings → Environment Variables."
+  );
+}
 
 export const { handlers, signIn, signOut, auth } = NextAuth({
   ...authConfig,
-  secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
+  secret: authSecret,
   providers: [
     Credentials({
       name: "credentials",

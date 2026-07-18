@@ -2,20 +2,18 @@ import "dotenv/config";
 import { PrismaPg } from "@prisma/adapter-pg";
 import { Pool } from "pg";
 import { PrismaClient } from "@/generated/prisma/client";
+import { resolveDatabaseUrl } from "@/lib/env";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
 };
 
 export function getDatabaseUrl(): string {
-  const url =
-    process.env.DATABASE_URL ??
-    process.env.POSTGRES_PRISMA_URL ??
-    process.env.POSTGRES_URL;
+  const url = resolveDatabaseUrl();
 
   if (!url) {
     throw new Error(
-      "Database URL is not set. Add DATABASE_URL (or POSTGRES_PRISMA_URL) in Vercel → Settings → Environment Variables."
+      "Database URL is not set. Add DATABASE_URL (or connect Neon to Vercel) in Environment Variables."
     );
   }
 
