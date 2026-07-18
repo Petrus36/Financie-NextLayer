@@ -12,6 +12,5 @@ export const config = {
     "/income/:path*",
     "/statistics/:path*",
     "/celkove-financie/:path*",
-    "/login",
   ],
 };

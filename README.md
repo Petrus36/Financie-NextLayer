@@ -34,6 +34,25 @@ Otvorte [http://localhost:3000](http://localhost:3000)
 
 > Zmeňte heslo po prvom prihlásení v produkcii!
 
+## Nasadenie na Vercel
+
+V **Project → Settings → Environment Variables** nastavte:
+
+| Premenná | Príklad |
+|---|---|
+| `DATABASE_URL` | Neon pooled connection string |
+| `DATABASE_URL_UNPOOLED` | Neon direct connection string |
+| `AUTH_SECRET` | rovnaký náhodný reťazec ako lokálne (`openssl rand -base64 32`) |
+| `AUTH_URL` | `https://financie-next-layer.vercel.app` |
+
+Po prvom deployi spustite seed proti produkčnej databáze (aspoň raz), aby existoval admin účet:
+
+```bash
+DATABASE_URL="..." npm run db:seed
+```
+
+Ak sa stránka stále neotvorí, vymažte cookies pre doménu `vercel.app` v prehliadači a skúste znova.
+
 ## Tech stack
 
 - Next.js 16 (App Router)

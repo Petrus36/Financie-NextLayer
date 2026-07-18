@@ -5,7 +5,7 @@ import { Layers } from "lucide-react";
 
 export default async function LoginPage() {
   const session = await auth();
-  if (session) redirect("/dashboard");
+  if (session?.user) redirect("/dashboard");
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-black px-4">
