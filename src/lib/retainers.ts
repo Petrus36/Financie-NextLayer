@@ -1,6 +1,39 @@
 import { startOfMonth, endOfMonth, eachMonthOfInterval } from "date-fns";
 import { prisma } from "@/lib/prisma";
 
+export function retainerUnitAmount(retainer: {
+  monthlyAmount: number;
+  targetCount: number;
+}) {
+  return retainer.targetCount > 0 ? retainer.monthlyAmount / retainer.targetCount : 0;
+}
+
+export function mapRetainersForDisplay(
+  retainers: Array<{
+    id: string;
+    title: string;
+    monthlyAmount: number;
+    deliverableLabel: string;
+    targetCount: number;
+    completedCount: number;
+    active: boolean;
+    periodStart: Date;
+    deliveries: { amount: number }[];
+  }>
+) {
+  return retainers.map((r) => ({
+    id: r.id,
+    title: r.title,
+    monthlyAmount: r.monthlyAmount,
+    deliverableLabel: r.deliverableLabel,
+    targetCount: r.targetCount,
+    completedCount: r.completedCount,
+    active: r.active,
+    periodStart: r.periodStart,
+    earnedThisMonth: r.deliveries.reduce((sum, d) => sum + d.amount, 0),
+  }));
+}
+
 /** Reset completed deliverables when a new calendar month starts. */
 export async function syncRetainerPeriods(filters?: {
   clientId?: string;

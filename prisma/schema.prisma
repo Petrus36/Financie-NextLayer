@@ -109,6 +109,19 @@ model MonthlyRetainer {
   client    Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
   projectId String?
   project   Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+
+  deliveries RetainerDelivery[]
+}
+
+model RetainerDelivery {
+  id          String   @id @default(cuid())
+  amount      Float
+  description String
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  retainerId String
+  retainer   MonthlyRetainer @relation(fields: [retainerId], references: [id], onDelete: Cascade)
 }
 
 model FirmExpense {
@@ -134,4 +147,12 @@ model FirmIncome {
   date        DateTime @default(now())
   category    String?
   createdAt   DateTime @default(now())
+}
+
+model FirmBalance {
+  id         String   @id @default("main")
+  cardAmount Float    @default(0)
+  cashAmount Float    @default(0)
+  notes      String?
+  updatedAt  DateTime @updatedAt
 }

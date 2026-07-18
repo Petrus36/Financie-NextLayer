@@ -1,13 +1,15 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { startOfMonth } from "date-fns";
 import { ArrowLeft, Plus, Mail, Phone, Building2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
-import { syncRetainerPeriods } from "@/lib/retainers";
+import { syncRetainerPeriods, mapRetainersForDisplay } from "@/lib/retainers";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { RetainerSection } from "@/components/retainers/retainer-section";
+import { createRetainer } from "@/actions/finance";
 
 export default async function ClientDetailPage({
   params,
@@ -18,6 +20,8 @@ export default async function ClientDetailPage({
 
   await syncRetainerPeriods({ clientId: id });
 
+  const monthStart = startOfMonth(new Date());
+
   const client = await prisma.client.findUnique({
     where: { id },
     include: {
@@ -26,11 +30,21 @@ export default async function ClientDetailPage({
         orderBy: { createdAt: "desc" },
       },
       maintenance: { where: { active: true }, include: { project: true } },
-      retainers: { where: { active: true }, orderBy: { createdAt: "desc" } },
+      retainers: {
+        orderBy: [{ active: "desc" }, { createdAt: "desc" }],
+        include: {
+          deliveries: {
+            where: { date: { gte: monthStart } },
+            select: { amount: true },
+          },
+        },
+      },
     },
   });
 
   if (!client) notFound();
+
+  const createRetainerAction = createRetainer.bind(null, id, null);
 
   const totalRevenue = client.projects.reduce((s, p) => s + p.price, 0);
   const totalExpenses = client.projects.reduce(
@@ -124,7 +138,10 @@ export default async function ClientDetailPage({
         </Card>
       )}
 
-      <RetainerSection clientId={id} retainers={client.retainers} />
+      <RetainerSection
+        retainers={mapRetainersForDisplay(client.retainers)}
+        createAction={createRetainerAction}
+      />
 
       <Card>
         <CardHeader>

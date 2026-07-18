@@ -29,9 +29,13 @@ function createPrismaClient() {
 }
 
 function getPrismaClient(): PrismaClient {
-  if (!globalForPrisma.prisma) {
-    globalForPrisma.prisma = createPrismaClient();
+  const existing = globalForPrisma.prisma;
+  // Recreate client after schema changes (dev HMR keeps stale instance)
+  if (existing && "firmBalance" in existing) {
+    return existing;
   }
+
+  globalForPrisma.prisma = createPrismaClient();
   return globalForPrisma.prisma;
 }
 

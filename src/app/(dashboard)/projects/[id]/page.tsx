@@ -2,10 +2,11 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
 import { getProjectSummary } from "@/lib/statistics";
-import { syncRetainerPeriods } from "@/lib/retainers";
+import { syncRetainerPeriods, mapRetainersForDisplay } from "@/lib/retainers";
 import {
   addProjectExpense,
   addProjectPayment,
+  createRetainer,
   deleteProjectExpense,
   deleteProjectPayment,
   deliverProject,
@@ -32,6 +33,7 @@ export default async function ProjectDetailPage({
   const { project, totalExpenses, totalPaid, remaining, profit, margin } = summary;
   const addExpenseAction = addProjectExpense.bind(null, id);
   const addPaymentAction = addProjectPayment.bind(null, id);
+  const createRetainerAction = createRetainer.bind(null, project.clientId, id);
 
   return (
     <div className="space-y-6">
@@ -128,10 +130,8 @@ export default async function ProjectDetailPage({
       />
 
       <RetainerSection
-        clientId={project.clientId}
-        projectId={id}
-        retainers={project.retainers}
-        compact
+        retainers={mapRetainersForDisplay(project.retainers)}
+        createAction={createRetainerAction}
       />
 
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">

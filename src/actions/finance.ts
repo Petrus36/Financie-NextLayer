@@ -1,6 +1,8 @@
 "use server";
 
+import { startOfMonth } from "date-fns";
 import { prisma } from "@/lib/prisma";
+import { retainerUnitAmount } from "@/lib/retainers";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
@@ -282,12 +284,24 @@ export async function createRetainer(
 export async function incrementRetainer(id: string) {
   const retainer = await prisma.monthlyRetainer.findUnique({ where: { id } });
   if (!retainer || !retainer.active) return;
+  if (retainer.completedCount >= retainer.targetCount) return;
 
-  await prisma.monthlyRetainer.update({
-    where: { id },
-    data: {
-      completedCount: Math.min(retainer.completedCount + 1, retainer.targetCount),
-    },
+  const unitAmount = retainerUnitAmount(retainer);
+
+  await prisma.$transaction(async (tx) => {
+    await tx.monthlyRetainer.update({
+      where: { id },
+      data: {
+        completedCount: retainer.completedCount + 1,
+      },
+    });
+    await tx.retainerDelivery.create({
+      data: {
+        retainerId: id,
+        amount: unitAmount,
+        description: `${retainer.title} — ${retainer.deliverableLabel}`,
+      },
+    });
   });
 
   revalidateRetainerPaths(retainer.clientId, retainer.projectId);
@@ -295,11 +309,21 @@ export async function incrementRetainer(id: string) {
 
 export async function decrementRetainer(id: string) {
   const retainer = await prisma.monthlyRetainer.findUnique({ where: { id } });
-  if (!retainer) return;
+  if (!retainer || retainer.completedCount <= 0) return;
 
-  await prisma.monthlyRetainer.update({
-    where: { id },
-    data: { completedCount: Math.max(retainer.completedCount - 1, 0) },
+  const periodStart = startOfMonth(new Date());
+  const latestDelivery = await prisma.retainerDelivery.findFirst({
+    where: { retainerId: id, date: { gte: periodStart } },
+    orderBy: { date: "desc" },
+  });
+  if (!latestDelivery) return;
+
+  await prisma.$transaction(async (tx) => {
+    await tx.retainerDelivery.delete({ where: { id: latestDelivery.id } });
+    await tx.monthlyRetainer.update({
+      where: { id },
+      data: { completedCount: retainer.completedCount - 1 },
+    });
   });
 
   revalidateRetainerPaths(retainer.clientId, retainer.projectId);
@@ -338,4 +362,25 @@ export async function deleteRetainer(id: string) {
 function revalidateRetainerPaths(clientId: string, projectId: string | null) {
   revalidatePath(`/clients/${clientId}`);
   if (projectId) revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/dashboard");
+  revalidatePath("/statistics");
+  revalidatePath("/celkove-financie");
+}
+
+export async function updateFirmBalance(formData: FormData) {
+  const cardAmount = parseFloat(formData.get("cardAmount") as string);
+  const cashAmount = parseFloat(formData.get("cashAmount") as string);
+  const notes = (formData.get("notes") as string) || null;
+
+  if (isNaN(cardAmount) || isNaN(cashAmount)) {
+    throw new Error("Zadajte platné sumy");
+  }
+
+  await prisma.firmBalance.upsert({
+    where: { id: "main" },
+    update: { cardAmount, cashAmount, notes },
+    create: { id: "main", cardAmount, cashAmount, notes },
+  });
+
+  revalidatePath("/celkove-financie");
 }

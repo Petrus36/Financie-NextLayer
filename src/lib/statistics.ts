@@ -1,8 +1,6 @@
 import {
   startOfMonth,
   endOfMonth,
-  startOfYear,
-  endOfYear,
   eachMonthOfInterval,
   eachDayOfInterval,
   isWithinInterval,
@@ -11,23 +9,16 @@ import {
 } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { calcRecurringMonthlyTotal } from "@/lib/retainers";
+import {
+  type StatisticsPeriod,
+  getPeriodBounds,
+  isSingleMonthPeriod,
+} from "@/lib/statistics-period";
 
-export type PeriodFilter = {
-  year: number;
-  month?: number;
-};
-
-function getPeriodBounds(filter: PeriodFilter) {
-  if (filter.month !== undefined) {
-    const date = new Date(filter.year, filter.month - 1, 1);
-    return { start: startOfMonth(date), end: endOfMonth(date) };
-  }
-  const date = new Date(filter.year, 0, 1);
-  return { start: startOfYear(date), end: endOfYear(date) };
-}
-
-export async function getStatistics(filter: PeriodFilter) {
-  const { start, end } = getPeriodBounds(filter);
+export async function getStatistics(period: StatisticsPeriod) {
+  const { start, end } = getPeriodBounds(period);
+  const singleMonth = isSingleMonthPeriod(start, end);
+  const recurringMonthFlag = singleMonth ? 1 : undefined;
 
   const [
     deliveredProjects,
@@ -36,6 +27,7 @@ export async function getStatistics(filter: PeriodFilter) {
     firmIncomes,
     maintenanceContracts,
     monthlyRetainers,
+    retainerDeliveries,
   ] = await Promise.all([
     prisma.project.findMany({
       where: {
@@ -59,6 +51,10 @@ export async function getStatistics(filter: PeriodFilter) {
     prisma.monthlyRetainer.findMany({
       where: { active: true },
       include: { client: true, project: true },
+    }),
+    prisma.retainerDelivery.findMany({
+      where: { date: { gte: start, lte: end } },
+      select: { amount: true, date: true },
     }),
   ]);
 
@@ -90,15 +86,10 @@ export async function getStatistics(filter: PeriodFilter) {
     maintenanceContracts,
     start,
     end,
-    filter.month
+    recurringMonthFlag
   );
 
-  const retainerRevenue = calcRecurringMonthlyTotal(
-    monthlyRetainers,
-    start,
-    end,
-    filter.month
-  );
+  const retainerRevenue = retainerDeliveries.reduce((sum, d) => sum + d.amount, 0);
 
   const firmIncomeTotal = firmIncomes.reduce((sum, i) => sum + i.amount, 0);
   const totalIncome =
@@ -121,7 +112,7 @@ export async function getStatistics(filter: PeriodFilter) {
     const expenseStart = new Date(e.date);
     if (expenseStart > end) return sum;
 
-    if (filter.month !== undefined) {
+    if (singleMonth) {
       if (expenseStart <= end) return sum + e.amount;
       return sum;
     }
@@ -136,8 +127,9 @@ export async function getStatistics(filter: PeriodFilter) {
   const totalExpenses = projectExpenseTotal + firmExpenseTotal;
   const profit = totalIncome - totalExpenses;
 
-  const monthlyBreakdown =
-    filter.month === undefined
+  const spansMultipleYears = start.getFullYear() !== end.getFullYear();
+
+  const monthlyBreakdown = !singleMonth
       ? eachMonthOfInterval({ start, end }).map((month) => {
           const mStart = startOfMonth(month);
           const mEnd = endOfMonth(month);
@@ -162,12 +154,9 @@ export async function getStatistics(filter: PeriodFilter) {
             1
           );
 
-          const monthRetainers = calcRecurringMonthlyTotal(
-            monthlyRetainers,
-            mStart,
-            mEnd,
-            1
-          );
+          const monthRetainers = retainerDeliveries
+            .filter((d) => isWithinInterval(d.date, { start: mStart, end: mEnd }))
+            .reduce((s, d) => s + d.amount, 0);
 
           const monthFirmIncome = firmIncomes
             .filter((i) => isWithinInterval(i.date, { start: mStart, end: mEnd }))
@@ -195,7 +184,10 @@ export async function getStatistics(filter: PeriodFilter) {
 
           return {
             month: month.getMonth() + 1,
-            label: new Intl.DateTimeFormat("sk-SK", { month: "short" }).format(month),
+            label: new Intl.DateTimeFormat("sk-SK", {
+              month: "short",
+              ...(spansMultipleYears ? { year: "2-digit" } : {}),
+            }).format(month),
             income,
             expenses: monthProjectExpenses + monthFirmExpenses,
             profit: income - monthProjectExpenses - monthFirmExpenses,
@@ -203,8 +195,7 @@ export async function getStatistics(filter: PeriodFilter) {
         })
       : [];
 
-  const dailyBreakdown =
-    filter.month !== undefined
+  const dailyBreakdown = singleMonth
       ? eachDayOfInterval({ start, end }).map((day) => {
           const dStart = startOfDay(day);
           const dEnd = endOfDay(day);
@@ -227,9 +218,9 @@ export async function getStatistics(filter: PeriodFilter) {
             ? calcRecurringMonthlyTotal(maintenanceContracts, dStart, dEnd, 1)
             : 0;
 
-          const dayRetainers = isFirstDay
-            ? calcRecurringMonthlyTotal(monthlyRetainers, dStart, dEnd, 1)
-            : 0;
+          const dayRetainers = retainerDeliveries
+            .filter((d) => isWithinInterval(d.date, { start: dStart, end: dEnd }))
+            .reduce((s, d) => s + d.amount, 0);
 
           const dayFirmIncome = firmIncomes
             .filter((i) => isWithinInterval(i.date, { start: dStart, end: dEnd }))
@@ -264,7 +255,7 @@ export async function getStatistics(filter: PeriodFilter) {
         })
       : [];
 
-  const chartBreakdown = filter.month !== undefined ? dailyBreakdown : monthlyBreakdown;
+  const chartBreakdown = singleMonth ? dailyBreakdown : monthlyBreakdown;
 
   return {
     totalIncome,
@@ -286,11 +277,6 @@ export async function getStatistics(filter: PeriodFilter) {
   };
 }
 
-export function getCurrentMonthFilter(): PeriodFilter {
-  const now = new Date();
-  return { year: now.getFullYear(), month: now.getMonth() + 1 };
-}
-
 export async function getDashboardOverview() {
   const [clientCount, activeProjects, deliveredProjects, activeMaintenance] =
     await Promise.all([
@@ -304,12 +290,22 @@ export async function getDashboardOverview() {
 }
 
 export async function getProjectSummary(projectId: string) {
+  const monthStart = startOfMonth(new Date());
+
   const project = await prisma.project.findUnique({
     where: { id: projectId },
     include: {
       expenses: true,
       payments: { orderBy: { date: "desc" } },
-      retainers: { where: { active: true }, orderBy: { createdAt: "desc" } },
+      retainers: {
+        orderBy: [{ active: "desc" }, { createdAt: "desc" }],
+        include: {
+          deliveries: {
+            where: { date: { gte: monthStart } },
+            select: { amount: true },
+          },
+        },
+      },
       client: true,
       maintenance: true,
     },

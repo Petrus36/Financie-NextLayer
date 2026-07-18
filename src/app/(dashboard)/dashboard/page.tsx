@@ -6,7 +6,8 @@ import {
   Briefcase,
   Wrench,
 } from "lucide-react";
-import { getStatistics, getDashboardOverview, getCurrentMonthFilter } from "@/lib/statistics";
+import { getStatistics, getDashboardOverview } from "@/lib/statistics";
+import { getCurrentMonthFilter, getPeriodBounds, formatPeriodLabel } from "@/lib/statistics-period";
 import { formatCurrency } from "@/lib/utils";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,10 +16,8 @@ import Link from "next/link";
 
 export default async function DashboardPage() {
   const filter = getCurrentMonthFilter();
-  const periodLabel = new Intl.DateTimeFormat("sk-SK", {
-    month: "long",
-    year: "numeric",
-  }).format(new Date(filter.year, filter.month! - 1));
+  const { start, end } = getPeriodBounds(filter);
+  const periodLabel = formatPeriodLabel(filter, start, end);
 
   const [stats, overview] = await Promise.all([
     getStatistics(filter),

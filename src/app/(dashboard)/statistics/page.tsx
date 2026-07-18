@@ -7,6 +7,12 @@ import {
   Wrench,
 } from "lucide-react";
 import { getStatistics } from "@/lib/statistics";
+import {
+  parseStatisticsPeriod,
+  getPeriodBounds,
+  formatPeriodLabel,
+  getChartTitle,
+} from "@/lib/statistics-period";
 import { formatCurrency } from "@/lib/utils";
 import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,33 +22,35 @@ import { FinanceChart } from "@/components/dashboard/finance-chart";
 export default async function StatisticsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ year?: string; month?: string; view?: string }>;
+  searchParams: Promise<{
+    year?: string;
+    month?: string;
+    view?: string;
+    from?: string;
+    to?: string;
+  }>;
 }) {
   const params = await searchParams;
-  const now = new Date();
-  const view = params.view === "year" ? "year" : "month";
-  const year = params.year ? parseInt(params.year) : now.getFullYear();
-  const month =
-    view === "month"
-      ? params.month
-        ? parseInt(params.month)
-        : now.getMonth() + 1
+  const period = parseStatisticsPeriod(params);
+  const { start, end } = getPeriodBounds(period);
+  const stats = await getStatistics(period);
+
+  const periodLabel = formatPeriodLabel(period, start, end);
+  const chartTitle = getChartTitle(period, periodLabel, start, end);
+
+  const year =
+    period.mode === "month" || period.mode === "year"
+      ? period.year
+      : new Date().getFullYear();
+  const month = period.mode === "month" ? period.month : undefined;
+  const from =
+    period.mode === "custom"
+      ? params.from
       : undefined;
-
-  const stats = await getStatistics({ year, month });
-
-  const periodLabel =
-    view === "month" && month
-      ? new Intl.DateTimeFormat("sk-SK", {
-          month: "long",
-          year: "numeric",
-        }).format(new Date(year, month - 1))
-      : String(year);
-
-  const chartTitle =
-    view === "month"
-      ? `Denný vývoj — ${periodLabel}`
-      : `Mesačný vývoj — ${year}`;
+  const to =
+    period.mode === "custom"
+      ? params.to
+      : undefined;
 
   return (
     <div className="space-y-8">
@@ -54,9 +62,11 @@ export default async function StatisticsPage({
         <Suspense fallback={null}>
           <PeriodFilter
             basePath="/statistics"
+            view={period.mode}
             year={year}
             month={month}
-            view={view}
+            from={from}
+            to={to}
           />
         </Suspense>
       </div>

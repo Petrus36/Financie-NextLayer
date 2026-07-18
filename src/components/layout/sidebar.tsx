@@ -10,6 +10,7 @@ import {
   LogOut,
   Layers,
   LineChart,
+  Wallet,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "next-auth/react";
@@ -17,6 +18,7 @@ import { signOut } from "next-auth/react";
 const navItems = [
   { href: "/dashboard", label: "Prehľad", icon: LayoutDashboard },
   { href: "/statistics", label: "Štatistiky", icon: LineChart },
+  { href: "/celkove-financie", label: "Celkové financie", icon: Wallet },
   { href: "/clients", label: "Klienti", icon: Users },
   { href: "/expenses", label: "Výdavky firmy", icon: Receipt },
   { href: "/income", label: "Príjmy firmy", icon: TrendingUp },
