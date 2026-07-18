@@ -2,14 +2,12 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { FormField } from "@/components/ui/label";
 import { Card, CardContent } from "@/components/ui/card";
 
 export function LoginForm() {
-  const router = useRouter();
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -19,20 +17,27 @@ export function LoginForm() {
     setError("");
 
     const formData = new FormData(e.currentTarget);
+    const email = String(formData.get("email") ?? "").trim();
+    const password = String(formData.get("password") ?? "");
+
     const result = await signIn("credentials", {
-      email: formData.get("email"),
-      password: formData.get("password"),
+      email,
+      password,
       redirect: false,
     });
 
-    if (result?.error) {
-      setError("Nesprávny email alebo heslo");
+    if (!result?.ok) {
+      setError(
+        result?.error === "CredentialsSignin"
+          ? "Nesprávny email alebo heslo"
+          : "Prihlásenie zlyhalo. Skúste znova alebo kontaktujte administrátora."
+      );
       setLoading(false);
       return;
     }
 
-    router.push("/dashboard");
-    router.refresh();
+    // Full page load ensures the session cookie is sent to middleware
+    window.location.href = "/dashboard";
   }
 
   return (
