@@ -11,6 +11,7 @@ import {
   Layers,
   LineChart,
   Wallet,
+  FileStack,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "next-auth/react";
@@ -20,6 +21,7 @@ const navItems = [
   { href: "/statistics", label: "Štatistiky", icon: LineChart },
   { href: "/celkove-financie", label: "Celkové financie", icon: Wallet },
   { href: "/clients", label: "Klienti", icon: Users },
+  { href: "/bills", label: "Doklady", icon: FileStack },
   { href: "/expenses", label: "Výdavky firmy", icon: Receipt },
   { href: "/income", label: "Príjmy firmy", icon: TrendingUp },
 ];

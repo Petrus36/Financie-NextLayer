@@ -26,10 +26,14 @@ function createPrismaClient() {
   return new PrismaClient({ adapter });
 }
 
+function isPrismaClientFresh(client: PrismaClient): boolean {
+  return "firmBalance" in client && "bill" in client;
+}
+
 function getPrismaClient(): PrismaClient {
   const existing = globalForPrisma.prisma;
   // Recreate client after schema changes (dev HMR keeps stale instance)
-  if (existing && "firmBalance" in existing) {
+  if (existing && isPrismaClientFresh(existing)) {
     return existing;
   }
 

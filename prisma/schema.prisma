@@ -156,3 +156,35 @@ model FirmBalance {
   notes      String?
   updatedAt  DateTime @updatedAt
 }
+
+enum BillSource {
+  SCAN
+  EMAIL
+  MANUAL
+}
+
+enum BillStatus {
+  INBOX
+  READY
+  SENT
+  DONE
+}
+
+model Bill {
+  id            String     @id @default(cuid())
+  vendor        String
+  title         String?
+  amount        Float?
+  billDate      DateTime   @default(now())
+  invoiceNumber String?
+  category      String?
+  source        BillSource @default(MANUAL)
+  status        BillStatus @default(INBOX)
+  notes         String?
+  emailLink     String?
+  fileName      String?
+  fileMime      String?
+  fileData      Bytes?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
