@@ -22,12 +22,20 @@ model Client {
   phone     String?
   company   String?
   notes     String?
+  ico       String?
+  dic       String?
+  icDph     String?
+  address   String?
+  city      String?
+  zip       String?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  projects    Project[]
-  maintenance MaintenanceContract[]
-  retainers   MonthlyRetainer[]
+  projects          Project[]
+  maintenance       MaintenanceContract[]
+  retainers         MonthlyRetainer[]
+  invoices          Invoice[]
+  invoiceTemplates  InvoiceTemplate[]
 }
 
 model Project {
@@ -36,6 +44,8 @@ model Project {
   description String?
   price       Float
   status      ProjectStatus @default(ACTIVE)
+  stage       ProjectStage  @default(IN_PROGRESS)
+  deadline    DateTime?
   deliveredAt DateTime?
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
@@ -45,13 +55,63 @@ model Project {
 
   expenses    ProjectExpense[]
   payments    ProjectPayment[]
+  members     ProjectMember[]
+  payouts     ProjectPayout[]
+  tasks       ProjectTask[]
   maintenance MaintenanceContract?
   retainers   MonthlyRetainer[]
+  invoices    Invoice[]
 }
 
 enum ProjectStatus {
   ACTIVE
   DELIVERED
+}
+
+enum ProjectStage {
+  INQUIRY
+  PLANNING
+  IN_PROGRESS
+  REVIEW
+  DELIVERED
+  PAUSED
+  CANCELLED
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  name      String
+  role      String
+  notes     String?
+  createdAt DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  payouts ProjectPayout[]
+}
+
+model ProjectPayout {
+  id          String   @id @default(cuid())
+  amount      Float
+  description String
+  date        DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  memberId  String
+  member    ProjectMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  projectId String
+  project   Project       @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ProjectTask {
+  id        String   @id @default(cuid())
+  title     String
+  done      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  projectId String
+  project   Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
 }
 
 model ProjectPayment {
@@ -147,6 +207,101 @@ model FirmIncome {
   date        DateTime @default(now())
   category    String?
   createdAt   DateTime @default(now())
+
+  invoiceId String?  @unique
+  invoice   Invoice? @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+
+  internalDocument InternalDocument?
+}
+
+model InternalDocument {
+  id            String   @id @default(cuid())
+  description   String
+  amount        Float
+  date          DateTime @default(now())
+  countAsIncome Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  incomeId String?     @unique
+  income   FirmIncome? @relation(fields: [incomeId], references: [id], onDelete: SetNull)
+}
+
+model CompanySettings {
+  id              String  @id @default("main")
+  name            String  @default("NextLayer Studio s.r.o.")
+  ico             String?
+  dic             String?
+  icDph           String?
+  address         String?
+  city            String?
+  zip             String?
+  country         String  @default("Slovensko")
+  email           String?
+  phone           String?
+  iban            String?
+  bic             String?
+  bankName        String?
+  vatPayer        Boolean @default(false)
+  defaultDueDays  Int     @default(14)
+  notes           String?
+  updatedAt       DateTime @updatedAt
+}
+
+enum InvoiceStatus {
+  DRAFT
+  SENT
+  PAID
+  CANCELLED
+}
+
+model Invoice {
+  id        String        @id @default(cuid())
+  number    String        @unique
+  status    InvoiceStatus @default(DRAFT)
+  issuedAt  DateTime      @default(now())
+  dueAt     DateTime
+  paidAt    DateTime?
+  notes     String?
+  total     Float
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  clientId   String
+  client     Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  projectId  String?
+  project    Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  templateId String?
+
+  items  InvoiceItem[]
+  income FirmIncome?
+}
+
+model InvoiceItem {
+  id          String  @id @default(cuid())
+  description String
+  quantity    Float   @default(1)
+  unit        String  @default("ks")
+  unitPrice   Float
+
+  invoiceId String
+  invoice   Invoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model InvoiceTemplate {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  quantity    Float    @default(1)
+  unit        String   @default("mes.")
+  unitPrice   Float
+  dueDays     Int      @default(14)
+  active      Boolean  @default(true)
+  autoIssue   Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 }
 
 model FirmBalance {

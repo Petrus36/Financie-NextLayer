@@ -13,5 +13,7 @@ export const config = {
     "/statistics/:path*",
     "/celkove-financie/:path*",
     "/bills/:path*",
+    "/invoices/:path*",
+    "/settings/:path*",
   ],
 };

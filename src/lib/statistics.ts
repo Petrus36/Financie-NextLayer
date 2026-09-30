@@ -14,6 +14,7 @@ import {
   getPeriodBounds,
   isSingleMonthPeriod,
 } from "@/lib/statistics-period";
+import { firmExpenseAmountInPeriod } from "@/lib/firm-expense-period";
 
 export async function getStatistics(period: StatisticsPeriod) {
   const { start, end } = getPeriodBounds(period);
@@ -28,6 +29,7 @@ export async function getStatistics(period: StatisticsPeriod) {
     maintenanceContracts,
     monthlyRetainers,
     retainerDeliveries,
+    invoices,
   ] = await Promise.all([
     prisma.project.findMany({
       where: {
@@ -43,6 +45,7 @@ export async function getStatistics(period: StatisticsPeriod) {
     prisma.firmExpense.findMany(),
     prisma.firmIncome.findMany({
       where: { date: { gte: start, lte: end } },
+      select: { amount: true, date: true, invoiceId: true },
     }),
     prisma.maintenanceContract.findMany({
       where: { active: true },
@@ -55,6 +58,16 @@ export async function getStatistics(period: StatisticsPeriod) {
     prisma.retainerDelivery.findMany({
       where: { date: { gte: start, lte: end } },
       select: { amount: true, date: true },
+    }),
+    prisma.invoice.findMany({
+      where: { status: { not: "CANCELLED" } },
+      select: {
+        total: true,
+        status: true,
+        dueAt: true,
+        issuedAt: true,
+        paidAt: true,
+      },
     }),
   ]);
 
@@ -91,9 +104,18 @@ export async function getStatistics(period: StatisticsPeriod) {
 
   const retainerRevenue = retainerDeliveries.reduce((sum, d) => sum + d.amount, 0);
 
-  const firmIncomeTotal = firmIncomes.reduce((sum, i) => sum + i.amount, 0);
+  const invoiceRevenue = firmIncomes
+    .filter((i) => i.invoiceId)
+    .reduce((sum, i) => sum + i.amount, 0);
+  const firmIncomeTotal = firmIncomes
+    .filter((i) => !i.invoiceId)
+    .reduce((sum, i) => sum + i.amount, 0);
   const totalIncome =
-    totalProjectRevenue + maintenanceRevenue + retainerRevenue + firmIncomeTotal;
+    totalProjectRevenue +
+    maintenanceRevenue +
+    retainerRevenue +
+    invoiceRevenue +
+    firmIncomeTotal;
 
   const projectExpenseTotal = projectExpenses.reduce(
     (sum, e) => sum + e.amount,
@@ -126,6 +148,32 @@ export async function getStatistics(period: StatisticsPeriod) {
 
   const totalExpenses = projectExpenseTotal + firmExpenseTotal;
   const profit = totalIncome - totalExpenses;
+  const margin = totalIncome > 0 ? (profit / totalIncome) * 100 : 0;
+
+  const expenseByCategoryMap = new Map<string, number>();
+  for (const expense of firmExpenses) {
+    const amount = firmExpenseAmountInPeriod(expense, start, end, singleMonth);
+    if (amount <= 0) continue;
+    const label = expense.category?.trim() || "Bez kategórie";
+    expenseByCategoryMap.set(label, (expenseByCategoryMap.get(label) ?? 0) + amount);
+  }
+  const expenseByCategory = [...expenseByCategoryMap.entries()]
+    .map(([label, value]) => ({ label, value }))
+    .sort((a, b) => b.value - a.value);
+
+  const issuedInvoices = invoices.filter((invoice) =>
+    isWithinInterval(invoice.issuedAt, { start, end })
+  );
+  const invoiceIssuedTotal = issuedInvoices.reduce((sum, i) => sum + i.total, 0);
+  const invoiceIssuedCount = issuedInvoices.length;
+  const outstandingInvoices = invoices.filter(
+    (invoice) => invoice.status === "DRAFT" || invoice.status === "SENT"
+  );
+  const invoiceOutstanding = outstandingInvoices.reduce((sum, i) => sum + i.total, 0);
+  const overdueInvoices = outstandingInvoices.filter(
+    (invoice) => invoice.status === "SENT" && new Date(invoice.dueAt) < new Date()
+  );
+  const invoiceOverdue = overdueInvoices.reduce((sum, i) => sum + i.total, 0);
 
   const spansMultipleYears = start.getFullYear() !== end.getFullYear();
 
@@ -264,9 +312,18 @@ export async function getStatistics(period: StatisticsPeriod) {
     projectRevenue: totalProjectRevenue,
     maintenanceRevenue,
     retainerRevenue,
+    invoiceRevenue,
+    invoiceIssuedTotal,
+    invoiceIssuedCount,
+    invoiceOutstanding,
+    invoiceOverdue,
+    invoiceOverdueCount: overdueInvoices.length,
+    unpaidInvoiceCount: outstandingInvoices.length,
+    margin,
     firmIncomeTotal,
     projectExpenseTotal,
     firmExpenseTotal,
+    expenseByCategory,
     deliveredProjectsCount: deliveredProjects.length,
     activeMaintenanceCount: maintenanceContracts.length,
     activeRetainerCount: monthlyRetainers.length,
@@ -278,15 +335,35 @@ export async function getStatistics(period: StatisticsPeriod) {
 }
 
 export async function getDashboardOverview() {
-  const [clientCount, activeProjects, deliveredProjects, activeMaintenance] =
-    await Promise.all([
-      prisma.client.count(),
-      prisma.project.count({ where: { status: "ACTIVE" } }),
-      prisma.project.count({ where: { status: "DELIVERED" } }),
-      prisma.maintenanceContract.count({ where: { active: true } }),
-    ]);
+  const [
+    clientCount,
+    activeProjects,
+    deliveredProjects,
+    activeMaintenance,
+    unpaidInvoices,
+  ] = await Promise.all([
+    prisma.client.count(),
+    prisma.project.count({ where: { status: "ACTIVE" } }),
+    prisma.project.count({ where: { status: "DELIVERED" } }),
+    prisma.maintenanceContract.count({ where: { active: true } }),
+    prisma.invoice.findMany({
+      where: { status: { in: ["DRAFT", "SENT"] } },
+      include: { client: true },
+      orderBy: { dueAt: "asc" },
+      take: 6,
+    }),
+  ]);
 
-  return { clientCount, activeProjects, deliveredProjects, activeMaintenance };
+  const unpaidTotal = unpaidInvoices.reduce((s, i) => s + i.total, 0);
+
+  return {
+    clientCount,
+    activeProjects,
+    deliveredProjects,
+    activeMaintenance,
+    unpaidInvoices,
+    unpaidTotal,
+  };
 }
 
 export async function getProjectSummary(projectId: string) {
@@ -308,23 +385,36 @@ export async function getProjectSummary(projectId: string) {
       },
       client: true,
       maintenance: true,
+      members: {
+        orderBy: { createdAt: "asc" },
+        include: { payouts: { orderBy: { date: "desc" } } },
+      },
+      payouts: { orderBy: { date: "desc" }, include: { member: true } },
+      tasks: { orderBy: { createdAt: "asc" } },
+      invoices: { orderBy: { issuedAt: "desc" }, take: 8 },
     },
   });
 
   if (!project) return null;
 
   const totalExpenses = project.expenses.reduce((s, e) => s + e.amount, 0);
+  const totalPayouts = project.payouts.reduce((s, p) => s + p.amount, 0);
   const totalPaid = project.payments.reduce((s, p) => s + p.amount, 0);
   const remaining = project.price - totalPaid;
-  const profit = project.price - totalExpenses;
+  const costs = totalExpenses + totalPayouts;
+  const profit = project.price - costs;
+  const realized = totalPaid - costs;
   const margin = project.price > 0 ? (profit / project.price) * 100 : 0;
 
   return {
     project,
     totalExpenses,
+    totalPayouts,
     totalPaid,
     remaining,
+    costs,
     profit,
+    realized,
     margin,
   };
 }

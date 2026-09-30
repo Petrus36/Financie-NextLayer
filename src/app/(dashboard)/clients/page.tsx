@@ -3,14 +3,14 @@ import { Plus, Mail, Phone, Building2 } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { formatCurrency } from "@/lib/utils";
 
 export default async function ClientsPage() {
   const clients = await prisma.client.findMany({
     include: {
-      projects: true,
-      maintenance: { where: { active: true } },
+      invoices: {
+        select: { total: true, status: true },
+      },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -42,32 +42,25 @@ export default async function ClientsPage() {
       ) : (
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
           {clients.map((client) => {
-            const activeProjects = client.projects.filter(
-              (p) => p.status === "ACTIVE"
+            const paidTotal = client.invoices
+              .filter((invoice) => invoice.status === "PAID")
+              .reduce((sum, invoice) => sum + invoice.total, 0);
+            const openCount = client.invoices.filter(
+              (invoice) => invoice.status === "DRAFT" || invoice.status === "SENT"
             ).length;
-            const totalValue = client.projects.reduce((s, p) => s + p.price, 0);
-            const maintenanceTotal = client.maintenance.reduce(
-              (s, m) => s + m.monthlyAmount,
-              0
-            );
 
             return (
               <Link key={client.id} href={`/clients/${client.id}`}>
                 <Card className="transition-all hover:border-brand/50 hover:shadow-lg hover:shadow-brand/5">
                   <CardContent className="p-5">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <h3 className="font-semibold text-zinc-100">{client.name}</h3>
-                        {client.company && (
-                          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted">
-                            <Building2 className="h-3 w-3" />
-                            {client.company}
-                          </p>
-                        )}
-                      </div>
-                      <Badge variant={activeProjects > 0 ? "info" : "default"}>
-                        {activeProjects} aktívnych
-                      </Badge>
+                    <div>
+                      <h3 className="font-semibold text-zinc-100">{client.name}</h3>
+                      {client.company && (
+                        <p className="mt-0.5 flex items-center gap-1 text-xs text-muted">
+                          <Building2 className="h-3 w-3" />
+                          {client.company}
+                        </p>
+                      )}
                     </div>
 
                     <div className="mt-4 space-y-1.5">
@@ -87,19 +80,16 @@ export default async function ClientsPage() {
 
                     <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
                       <div>
-                        <p className="text-xs text-muted">Hodnota projektov</p>
-                        <p className="text-sm font-medium text-zinc-200">
-                          {formatCurrency(totalValue)}
+                        <p className="text-xs text-muted">Zaplatené nám</p>
+                        <p className="text-sm font-medium text-brand">
+                          {formatCurrency(paidTotal)}
                         </p>
                       </div>
-                      {maintenanceTotal > 0 && (
-                        <div className="text-right">
-                          <p className="text-xs text-muted">Údržba/mes.</p>
-                          <p className="text-sm font-medium text-brand">
-                            {formatCurrency(maintenanceTotal)}
-                          </p>
-                        </div>
-                      )}
+                      <p className="text-xs text-muted">
+                        {openCount > 0
+                          ? `${openCount} čaká na úhradu`
+                          : `${client.invoices.length} faktúr`}
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

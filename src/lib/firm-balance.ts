@@ -1,6 +1,19 @@
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 
 const BALANCE_ID = "main";
+
+/** Adjust „V hotovosti“ when recording cash internal income (interný doklad). */
+export async function adjustFirmCashInTransaction(
+  tx: Prisma.TransactionClient,
+  delta: number
+) {
+  await tx.firmBalance.upsert({
+    where: { id: BALANCE_ID },
+    update: { cashAmount: { increment: delta } },
+    create: { id: BALANCE_ID, cashAmount: delta },
+  });
+}
 
 export async function getFirmBalance() {
   return prisma.firmBalance.upsert({

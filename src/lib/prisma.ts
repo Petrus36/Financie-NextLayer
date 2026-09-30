@@ -4,8 +4,11 @@ import { Pool } from "pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import { resolveDatabaseUrl } from "@/lib/env";
 
+const PRISMA_CLIENT_STAMP = 7;
+
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
+  prismaStamp?: number;
 };
 
 export function getDatabaseUrl(): string {
@@ -27,17 +30,30 @@ function createPrismaClient() {
 }
 
 function isPrismaClientFresh(client: PrismaClient): boolean {
-  return "firmBalance" in client && "bill" in client;
+  return (
+    "firmBalance" in client &&
+    "bill" in client &&
+    "invoice" in client &&
+    "internalDocument" in client &&
+    "projectMember" in client &&
+    "projectPayout" in client &&
+    "projectTask" in client
+  );
 }
 
 function getPrismaClient(): PrismaClient {
   const existing = globalForPrisma.prisma;
   // Recreate client after schema changes (dev HMR keeps stale instance)
-  if (existing && isPrismaClientFresh(existing)) {
+  if (
+    existing &&
+    globalForPrisma.prismaStamp === PRISMA_CLIENT_STAMP &&
+    isPrismaClientFresh(existing)
+  ) {
     return existing;
   }
 
   globalForPrisma.prisma = createPrismaClient();
+  globalForPrisma.prismaStamp = PRISMA_CLIENT_STAMP;
   return globalForPrisma.prisma;
 }
 

@@ -3,22 +3,35 @@
 import { startOfMonth } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { retainerUnitAmount } from "@/lib/retainers";
+import { normalizeExpenseCategory } from "@/lib/expense-categories";
+import { adjustFirmCashInTransaction } from "@/lib/firm-balance";
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 
-export async function createClient(formData: FormData) {
+function parseClientFields(formData: FormData) {
   const name = formData.get("name") as string;
-  const email = (formData.get("email") as string) || null;
-  const phone = (formData.get("phone") as string) || null;
-  const company = (formData.get("company") as string) || null;
-  const notes = (formData.get("notes") as string) || null;
-
   if (!name?.trim()) {
     throw new Error("Meno klienta je povinné");
   }
 
+  return {
+    name: name.trim(),
+    email: (formData.get("email") as string) || null,
+    phone: (formData.get("phone") as string) || null,
+    company: (formData.get("company") as string) || null,
+    notes: (formData.get("notes") as string) || null,
+    ico: String(formData.get("ico") ?? "").trim() || null,
+    dic: String(formData.get("dic") ?? "").trim() || null,
+    icDph: String(formData.get("icDph") ?? "").trim() || null,
+    address: String(formData.get("address") ?? "").trim() || null,
+    city: String(formData.get("city") ?? "").trim() || null,
+    zip: String(formData.get("zip") ?? "").trim() || null,
+  };
+}
+
+export async function createClient(formData: FormData) {
   const client = await prisma.client.create({
-    data: { name: name.trim(), email, phone, company, notes },
+    data: parseClientFields(formData),
   });
 
   revalidatePath("/clients");
@@ -26,19 +39,15 @@ export async function createClient(formData: FormData) {
 }
 
 export async function updateClient(id: string, formData: FormData) {
-  const name = formData.get("name") as string;
-  const email = (formData.get("email") as string) || null;
-  const phone = (formData.get("phone") as string) || null;
-  const company = (formData.get("company") as string) || null;
-  const notes = (formData.get("notes") as string) || null;
-
   await prisma.client.update({
     where: { id },
-    data: { name: name.trim(), email, phone, company, notes },
+    data: parseClientFields(formData),
   });
 
   revalidatePath(`/clients/${id}`);
   revalidatePath("/clients");
+  revalidatePath("/invoices");
+  redirect(`/clients/${id}`);
 }
 
 export async function deleteClient(id: string) {
@@ -66,6 +75,7 @@ export async function createProject(clientId: string, formData: FormData) {
   });
 
   revalidatePath(`/clients/${clientId}`);
+  revalidatePath("/projects");
   redirect(`/projects/${project.id}`);
 }
 
@@ -90,11 +100,15 @@ export async function addProjectExpense(projectId: string, formData: FormData) {
   });
 
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
+  revalidatePath("/dashboard");
+  revalidatePath("/statistics");
 }
 
 export async function deleteProjectExpense(expenseId: string, projectId: string) {
   await prisma.projectExpense.delete({ where: { id: expenseId } });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
 }
 
 export async function addProjectPayment(projectId: string, formData: FormData) {
@@ -116,6 +130,7 @@ export async function addProjectPayment(projectId: string, formData: FormData) {
   });
 
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
   revalidatePath("/dashboard");
   revalidatePath("/statistics");
 }
@@ -123,6 +138,7 @@ export async function addProjectPayment(projectId: string, formData: FormData) {
 export async function deleteProjectPayment(paymentId: string, projectId: string) {
   await prisma.projectPayment.delete({ where: { id: paymentId } });
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
   revalidatePath("/dashboard");
   revalidatePath("/statistics");
 }
@@ -136,6 +152,7 @@ export async function deliverProject(projectId: string, formData: FormData) {
     where: { id: projectId },
     data: {
       status: "DELIVERED",
+      stage: "DELIVERED",
       deliveredAt: new Date(),
     },
   });
@@ -163,6 +180,7 @@ export async function deliverProject(projectId: string, formData: FormData) {
   }
 
   revalidatePath(`/projects/${projectId}`);
+  revalidatePath("/projects");
   revalidatePath(`/clients/${project.clientId}`);
   revalidatePath("/dashboard");
   revalidatePath("/statistics");
@@ -172,11 +190,14 @@ export async function createFirmExpense(formData: FormData) {
   const description = formData.get("description") as string;
   const amount = parseFloat(formData.get("amount") as string);
   const type = formData.get("type") as "ONE_TIME" | "MONTHLY";
-  const category = (formData.get("category") as string) || null;
+  const category = normalizeExpenseCategory(formData.get("category") as string);
   const dateStr = formData.get("date") as string;
 
   if (!description?.trim() || isNaN(amount)) {
     throw new Error("Popis a suma sú povinné");
+  }
+  if (!category) {
+    throw new Error("Vyberte kategóriu výdavku");
   }
 
   await prisma.firmExpense.create({
@@ -191,6 +212,7 @@ export async function createFirmExpense(formData: FormData) {
 
   revalidatePath("/expenses");
   revalidatePath("/dashboard");
+  revalidatePath("/statistics");
 }
 
 export async function toggleFirmExpense(id: string, active: boolean) {
@@ -207,6 +229,7 @@ export async function deleteFirmExpense(id: string) {
   await prisma.firmExpense.delete({ where: { id } });
   revalidatePath("/expenses");
   revalidatePath("/dashboard");
+  revalidatePath("/statistics");
 }
 
 export async function createFirmIncome(formData: FormData) {
@@ -230,12 +253,142 @@ export async function createFirmIncome(formData: FormData) {
 
   revalidatePath("/income");
   revalidatePath("/dashboard");
+  revalidatePath("/statistics");
 }
 
 export async function deleteFirmIncome(id: string) {
   await prisma.firmIncome.delete({ where: { id } });
   revalidatePath("/income");
   revalidatePath("/dashboard");
+  revalidatePath("/statistics");
+}
+
+function parseInternalDocumentFields(formData: FormData) {
+  const description = String(formData.get("description") ?? "").trim();
+  const amount = parseFloat(String(formData.get("amount") ?? ""));
+  const dateStr = formData.get("date") as string;
+  const date = dateStr ? new Date(dateStr) : new Date();
+
+  if (!description || isNaN(amount) || amount <= 0) {
+    throw new Error("Vyplňte popis a sumu");
+  }
+
+  const countAsIncome = formData.get("countAsIncome") === "on";
+
+  return { description, amount, date, countAsIncome };
+}
+
+function revalidateInternalDocumentPaths() {
+  revalidatePath("/celkove-financie");
+  revalidatePath("/income");
+  revalidatePath("/dashboard");
+  revalidatePath("/statistics");
+}
+
+export async function createInternalDocument(formData: FormData) {
+  const { description, amount, date, countAsIncome } =
+    parseInternalDocumentFields(formData);
+
+  await prisma.$transaction(async (tx) => {
+    let incomeId: string | undefined;
+    if (countAsIncome) {
+      const income = await tx.firmIncome.create({
+        data: {
+          description: `Interný doklad: ${description}`,
+          amount,
+          category: "Interný doklad",
+          date,
+        },
+      });
+      incomeId = income.id;
+    }
+
+    await tx.internalDocument.create({
+      data: {
+        description,
+        amount,
+        date,
+        countAsIncome,
+        incomeId,
+      },
+    });
+
+    await adjustFirmCashInTransaction(tx, amount);
+  });
+
+  revalidateInternalDocumentPaths();
+}
+
+export async function updateInternalDocument(id: string, formData: FormData) {
+  const { description, amount, date, countAsIncome } =
+    parseInternalDocumentFields(formData);
+  const doc = await prisma.internalDocument.findUnique({ where: { id } });
+  if (!doc) {
+    throw new Error("Doklad neexistuje");
+  }
+
+  const cashDelta = amount - doc.amount;
+
+  await prisma.$transaction(async (tx) => {
+    let incomeId: string | null = doc.incomeId;
+
+    if (countAsIncome && !incomeId) {
+      const income = await tx.firmIncome.create({
+        data: {
+          description: `Interný doklad: ${description}`,
+          amount,
+          category: "Interný doklad",
+          date,
+        },
+      });
+      incomeId = income.id;
+    } else if (countAsIncome && incomeId) {
+      await tx.firmIncome.update({
+        where: { id: incomeId },
+        data: {
+          description: `Interný doklad: ${description}`,
+          amount,
+          date,
+          category: "Interný doklad",
+        },
+      });
+    } else if (!countAsIncome && incomeId) {
+      await tx.firmIncome.delete({ where: { id: incomeId } });
+      incomeId = null;
+    }
+
+    await tx.internalDocument.update({
+      where: { id },
+      data: {
+        description,
+        amount,
+        date,
+        countAsIncome,
+        incomeId,
+      },
+    });
+
+    if (cashDelta !== 0) {
+      await adjustFirmCashInTransaction(tx, cashDelta);
+    }
+  });
+
+  revalidateInternalDocumentPaths();
+}
+
+export async function deleteInternalDocument(id: string) {
+  const doc = await prisma.internalDocument.findUnique({ where: { id } });
+  if (!doc) return;
+
+  await prisma.$transaction(async (tx) => {
+    if (doc.incomeId) {
+      await tx.firmIncome.delete({ where: { id: doc.incomeId } });
+    }
+    await tx.internalDocument.delete({ where: { id } });
+    await adjustFirmCashInTransaction(tx, -doc.amount);
+  });
+
+  revalidateInternalDocumentPaths();
 }
 
 export async function toggleMaintenance(id: string, active: boolean) {

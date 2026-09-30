@@ -3,8 +3,11 @@ import {
   TrendingUp,
   TrendingDown,
   DollarSign,
-  Briefcase,
-  Wrench,
+  Percent,
+  FileText,
+  Clock,
+  AlertTriangle,
+  CircleCheck,
 } from "lucide-react";
 import { getStatistics } from "@/lib/statistics";
 import {
@@ -18,6 +21,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { PeriodFilter } from "@/components/dashboard/period-filter";
 import { FinanceChart } from "@/components/dashboard/finance-chart";
+import { BreakdownList } from "@/components/dashboard/breakdown-list";
 
 export default async function StatisticsPage({
   searchParams,
@@ -43,14 +47,8 @@ export default async function StatisticsPage({
       ? period.year
       : new Date().getFullYear();
   const month = period.mode === "month" ? period.month : undefined;
-  const from =
-    period.mode === "custom"
-      ? params.from
-      : undefined;
-  const to =
-    period.mode === "custom"
-      ? params.to
-      : undefined;
+  const from = period.mode === "custom" ? params.from : undefined;
+  const to = period.mode === "custom" ? params.to : undefined;
 
   return (
     <div className="space-y-8">
@@ -71,15 +69,15 @@ export default async function StatisticsPage({
         </Suspense>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <StatCard
-          title="Celkové príjmy"
+          title="Príjmy"
           value={formatCurrency(stats.totalIncome)}
           icon={<TrendingUp className="h-5 w-5" />}
           trend="up"
         />
         <StatCard
-          title="Celkové výdavky"
+          title="Výdavky"
           value={formatCurrency(stats.totalExpenses)}
           icon={<TrendingDown className="h-5 w-5" />}
           trend="down"
@@ -92,10 +90,40 @@ export default async function StatisticsPage({
           trend={stats.profit >= 0 ? "up" : "down"}
         />
         <StatCard
-          title="Odovzdané projekty"
-          value={String(stats.deliveredProjectsCount)}
-          subtitle={`${stats.activeMaintenanceCount} aktívnych údržieb`}
-          icon={<Briefcase className="h-5 w-5" />}
+          title="Marža"
+          value={`${stats.margin.toFixed(1)} %`}
+          subtitle="Zisk / príjmy"
+          icon={<Percent className="h-5 w-5" />}
+          trend={stats.margin >= 0 ? "up" : "down"}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+        <StatCard
+          title="Vystavené faktúry"
+          value={formatCurrency(stats.invoiceIssuedTotal)}
+          subtitle={`${stats.invoiceIssuedCount} v období`}
+          icon={<FileText className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Zaplatené faktúry"
+          value={formatCurrency(stats.invoiceRevenue)}
+          subtitle="Prišlo na účet"
+          icon={<CircleCheck className="h-5 w-5" />}
+          trend="up"
+        />
+        <StatCard
+          title="Nezaplatené"
+          value={formatCurrency(stats.invoiceOutstanding)}
+          subtitle={`${stats.unpaidInvoiceCount} otvorených`}
+          icon={<Clock className="h-5 w-5" />}
+        />
+        <StatCard
+          title="Po splatnosti"
+          value={formatCurrency(stats.invoiceOverdue)}
+          subtitle={`${stats.invoiceOverdueCount} faktúr`}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          trend={stats.invoiceOverdue > 0 ? "down" : "up"}
         />
       </div>
 
@@ -111,107 +139,70 @@ export default async function StatisticsPage({
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Rozdelenie príjmov</CardTitle>
+            <CardTitle>Z čoho idú príjmy</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted">Projekty (odovzdané)</span>
-              <span className="text-sm font-medium text-zinc-100">
-                {formatCurrency(stats.projectRevenue)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted">Mesačná údržba</span>
-              <span className="text-sm font-medium text-zinc-100">
-                {formatCurrency(stats.maintenanceRevenue)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted">Mesačné zákazky</span>
-              <span className="text-sm font-medium text-zinc-100">
-                {formatCurrency(stats.retainerRevenue)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted">Ostatné príjmy firmy</span>
-              <span className="text-sm font-medium text-zinc-100">
-                {formatCurrency(stats.firmIncomeTotal)}
-              </span>
-            </div>
-            <div className="border-t border-border pt-3 flex items-center justify-between">
-              <span className="text-sm font-medium text-zinc-300">Spolu</span>
-              <span className="text-sm font-bold text-brand">
-                {formatCurrency(stats.totalIncome)}
-              </span>
-            </div>
+          <CardContent>
+            <BreakdownList
+              total={stats.totalIncome}
+              rows={[
+                { label: "Projekty", value: stats.projectRevenue },
+                { label: "Mesačná údržba", value: stats.maintenanceRevenue },
+                { label: "Mesačné zákazky", value: stats.retainerRevenue },
+                { label: "Zaplatené faktúry", value: stats.invoiceRevenue },
+                { label: "Ostatné príjmy firmy", value: stats.firmIncomeTotal },
+              ]}
+            />
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Rozdelenie výdavkov</CardTitle>
+            <CardTitle>Z čoho idú výdavky</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted">Výdavky na projekty</span>
-              <span className="text-sm font-medium text-zinc-100">
-                {formatCurrency(stats.projectExpenseTotal)}
-              </span>
-            </div>
-            <div className="flex items-center justify-between">
-              <span className="text-sm text-muted">Výdavky firmy</span>
-              <span className="text-sm font-medium text-zinc-100">
-                {formatCurrency(stats.firmExpenseTotal)}
-              </span>
-            </div>
-            <div className="border-t border-border pt-3 flex items-center justify-between">
-              <span className="text-sm font-medium text-zinc-300">Spolu</span>
-              <span className="text-sm font-bold text-red-400">
-                {formatCurrency(stats.totalExpenses)}
-              </span>
-            </div>
+          <CardContent>
+            <BreakdownList
+              total={stats.totalExpenses}
+              accent="red"
+              rows={[
+                {
+                  label: "Výdavky na projekty",
+                  value: stats.projectExpenseTotal,
+                  accent: "red",
+                },
+                {
+                  label: "Výdavky firmy",
+                  value: stats.firmExpenseTotal,
+                  accent: "red",
+                },
+              ]}
+            />
           </CardContent>
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted">
-            <Briefcase className="h-4 w-4" />
-            <p className="text-xs">Príjmy z projektov</p>
-          </div>
-          <p className="mt-2 text-xl font-bold text-brand">
-            {formatCurrency(stats.projectRevenue)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted">
-            <Wrench className="h-4 w-4" />
-            <p className="text-xs">Mesačná údržba</p>
-          </div>
-          <p className="mt-2 text-xl font-bold text-brand">
-            {formatCurrency(stats.maintenanceRevenue)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted">
-            <Briefcase className="h-4 w-4" />
-            <p className="text-xs">Mesačné zákazky</p>
-          </div>
-          <p className="mt-2 text-xl font-bold text-brand">
-            {formatCurrency(stats.retainerRevenue)}
-          </p>
-        </Card>
-        <Card className="p-4">
-          <div className="flex items-center gap-2 text-muted">
-            <TrendingUp className="h-4 w-4" />
-            <p className="text-xs">Ostatné príjmy</p>
-          </div>
-          <p className="mt-2 text-xl font-bold text-brand">
-            {formatCurrency(stats.firmIncomeTotal)}
-          </p>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader>
+          <CardTitle>Výdavky firmy podľa kategórií</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stats.expenseByCategory.length === 0 ? (
+            <p className="py-6 text-center text-sm text-muted">
+              V tomto období zatiaľ nie sú výdavky firmy s kategóriou.
+            </p>
+          ) : (
+            <BreakdownList
+              total={stats.firmExpenseTotal}
+              accent="red"
+              totalLabel="Spolu výdavky firmy"
+              rows={stats.expenseByCategory.map((row) => ({
+                label: row.label,
+                value: row.value,
+                accent: "red" as const,
+              }))}
+            />
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

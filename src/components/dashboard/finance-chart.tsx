@@ -1,7 +1,8 @@
 "use client";
 
 import {
-  LineChart,
+  ComposedChart,
+  Bar,
   Line,
   XAxis,
   YAxis,
@@ -36,21 +37,22 @@ function CustomTooltip({
 }) {
   if (!active || !payload?.length) return null;
 
-  const profit = payload.find((p) => p.dataKey === "profit");
+  const income = payload.find((p) => p.dataKey === "income");
   const expenses = payload.find((p) => p.dataKey === "expenses");
+  const profit = payload.find((p) => p.dataKey === "profit");
 
   return (
     <div className="rounded-lg border border-border-strong bg-surface-elevated px-4 py-3 shadow-xl">
       <p className="mb-2 text-xs font-medium text-muted">{label}</p>
       <div className="space-y-1.5">
-        {profit && (
+        {income && (
           <div className="flex items-center justify-between gap-6">
             <span className="flex items-center gap-2 text-sm text-zinc-200">
-              <span className="h-2.5 w-2.5 rounded-full bg-brand" />
-              Zisk
+              <span className="h-2.5 w-2.5 rounded-full bg-zinc-300" />
+              Príjmy
             </span>
-            <span className="text-sm font-semibold text-brand">
-              {formatMoney(profit.value)}
+            <span className="text-sm font-semibold text-zinc-100">
+              {formatMoney(income.value)}
             </span>
           </div>
         )}
@@ -62,6 +64,17 @@ function CustomTooltip({
             </span>
             <span className="text-sm font-semibold text-red-400">
               {formatMoney(expenses.value)}
+            </span>
+          </div>
+        )}
+        {profit && (
+          <div className="flex items-center justify-between gap-6">
+            <span className="flex items-center gap-2 text-sm text-zinc-200">
+              <span className="h-2.5 w-2.5 rounded-full bg-brand" />
+              Zisk
+            </span>
+            <span className="text-sm font-semibold text-brand">
+              {formatMoney(profit.value)}
             </span>
           </div>
         )}
@@ -83,17 +96,21 @@ export function FinanceChart({ data }: { data: ChartData[] }) {
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-6 px-1">
         <div className="flex items-center gap-2">
+          <span className="h-3 w-3 rounded-sm bg-zinc-400" />
+          <span className="text-sm text-zinc-300">Príjmy</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="h-3 w-3 rounded-sm bg-red-500" />
+          <span className="text-sm text-zinc-300">Výdavky</span>
+        </div>
+        <div className="flex items-center gap-2">
           <span className="h-3 w-8 rounded-full bg-brand" />
           <span className="text-sm text-zinc-300">Zisk</span>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="h-3 w-8 rounded-full bg-red-500" />
-          <span className="text-sm text-zinc-300">Výdavky</span>
-        </div>
       </div>
 
-      <ResponsiveContainer width="100%" height={340}>
-        <LineChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
+      <ResponsiveContainer width="100%" height={360}>
+        <ComposedChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
           <XAxis
             dataKey="label"
@@ -116,25 +133,18 @@ export function FinanceChart({ data }: { data: ChartData[] }) {
           />
           <ReferenceLine y={0} stroke="#333" strokeDasharray="4 4" />
           <Tooltip content={<CustomTooltip />} />
+          <Bar dataKey="income" name="Príjmy" fill="#a1a1aa" radius={[4, 4, 0, 0]} maxBarSize={28} />
+          <Bar dataKey="expenses" name="Výdavky" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={28} />
           <Line
             type="monotone"
             dataKey="profit"
             name="Zisk"
             stroke="#BAFF57"
             strokeWidth={3}
-            dot={{ fill: "#BAFF57", stroke: "#000", strokeWidth: 1, r: 4 }}
+            dot={{ fill: "#BAFF57", stroke: "#000", strokeWidth: 1, r: 3 }}
             activeDot={{ r: 6, fill: "#BAFF57", stroke: "#fff", strokeWidth: 2 }}
           />
-          <Line
-            type="monotone"
-            dataKey="expenses"
-            name="Výdavky"
-            stroke="#ef4444"
-            strokeWidth={3}
-            dot={{ fill: "#ef4444", stroke: "#000", strokeWidth: 1, r: 4 }}
-            activeDot={{ r: 6, fill: "#ef4444", stroke: "#fff", strokeWidth: 2 }}
-          />
-        </LineChart>
+        </ComposedChart>
       </ResponsiveContainer>
     </div>
   );

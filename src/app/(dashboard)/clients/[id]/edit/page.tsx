@@ -1,34 +1,45 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { ArrowLeft } from "lucide-react";
-import { createClient } from "@/actions/finance";
+import { prisma } from "@/lib/prisma";
+import { updateClient } from "@/actions/finance";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { FormField } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
-export default function NewClientPage() {
+export default async function EditClientPage({
+  params,
+}: {
+  params: Promise<{ id: string }>;
+}) {
+  const { id } = await params;
+  const client = await prisma.client.findUnique({ where: { id } });
+  if (!client) notFound();
+
+  const action = updateClient.bind(null, id);
+
   return (
     <div className="mx-auto max-w-2xl space-y-6">
       <Link
-        href="/clients"
-        className="inline-flex items-center gap-2 text-sm text-zinc-400 hover:text-zinc-100"
+        href={`/clients/${id}`}
+        className="inline-flex items-center gap-2 text-sm text-muted hover:text-zinc-100"
       >
         <ArrowLeft className="h-4 w-4" />
-        Späť na klientov
+        Späť na klienta
       </Link>
-
       <Card>
         <CardHeader>
-          <CardTitle>Nový klient</CardTitle>
+          <CardTitle>Upraviť klienta</CardTitle>
         </CardHeader>
         <CardContent>
-          <form action={createClient} className="space-y-4">
+          <form action={action} className="space-y-4">
             <FormField label="Meno / Názov *" htmlFor="name">
-              <Input id="name" name="name" required placeholder="Jan Novák" />
+              <Input id="name" name="name" required defaultValue={client.name} />
             </FormField>
             <FormField label="Firma" htmlFor="company">
-              <Input id="company" name="company" placeholder="Novák s.r.o." />
+              <Input id="company" name="company" defaultValue={client.company ?? ""} />
             </FormField>
             <div className="grid grid-cols-2 gap-4">
               <FormField label="Email" htmlFor="email">
@@ -36,46 +47,39 @@ export default function NewClientPage() {
                   id="email"
                   name="email"
                   type="email"
-                  placeholder="jan@example.com"
+                  defaultValue={client.email ?? ""}
                 />
               </FormField>
               <FormField label="Telefón" htmlFor="phone">
-                <Input id="phone" name="phone" placeholder="+421 900 000 000" />
+                <Input id="phone" name="phone" defaultValue={client.phone ?? ""} />
               </FormField>
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <FormField label="IČO" htmlFor="ico">
-                <Input id="ico" name="ico" placeholder="53001702" />
+                <Input id="ico" name="ico" defaultValue={client.ico ?? ""} />
               </FormField>
               <FormField label="DIČ" htmlFor="dic">
-                <Input id="dic" name="dic" />
+                <Input id="dic" name="dic" defaultValue={client.dic ?? ""} />
               </FormField>
               <FormField label="IČ DPH" htmlFor="icDph">
-                <Input id="icDph" name="icDph" />
+                <Input id="icDph" name="icDph" defaultValue={client.icDph ?? ""} />
               </FormField>
             </div>
             <FormField label="Adresa" htmlFor="address">
-              <Input id="address" name="address" placeholder="Galvaniho 19" />
+              <Input id="address" name="address" defaultValue={client.address ?? ""} />
             </FormField>
             <div className="grid grid-cols-2 gap-4">
               <FormField label="PSČ" htmlFor="zip">
-                <Input id="zip" name="zip" placeholder="82104" />
+                <Input id="zip" name="zip" defaultValue={client.zip ?? ""} />
               </FormField>
               <FormField label="Mesto" htmlFor="city">
-                <Input id="city" name="city" placeholder="Bratislava" />
+                <Input id="city" name="city" defaultValue={client.city ?? ""} />
               </FormField>
             </div>
             <FormField label="Poznámky" htmlFor="notes">
-              <Textarea id="notes" name="notes" rows={3} placeholder="Voliteľné poznámky..." />
+              <Textarea id="notes" name="notes" rows={3} defaultValue={client.notes ?? ""} />
             </FormField>
-            <div className="flex justify-end gap-3 pt-2">
-              <Link href="/clients">
-                <Button type="button" variant="secondary">
-                  Zrušiť
-                </Button>
-              </Link>
-              <Button type="submit">Vytvoriť klienta</Button>
-            </div>
+            <Button type="submit">Uložiť</Button>
           </form>
         </CardContent>
       </Card>

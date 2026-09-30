@@ -25,6 +25,7 @@ import { formatCurrency, formatDate } from "@/lib/utils";
 import { DeleteItemButton } from "@/components/ui/delete-item-button";
 import { ToggleActiveButton } from "@/components/ui/toggle-active-button";
 import { FinanceListFilters } from "@/components/dashboard/finance-list-filters";
+import { FIRM_EXPENSE_CATEGORIES } from "@/lib/expense-categories";
 import type { ExpenseType } from "@/generated/prisma/client";
 
 export default async function ExpensesPage({
@@ -211,12 +212,17 @@ export default async function ExpensesPage({
                   <option value="MONTHLY">Mesačný (opakujúci sa)</option>
                 </Select>
               </FormField>
-              <FormField label="Kategória" htmlFor="category">
-                <Input
-                  id="category"
-                  name="category"
-                  placeholder="Nájom, software..."
-                />
+              <FormField label="Kategória *" htmlFor="category">
+                <Select id="category" name="category" required defaultValue="">
+                  <option value="" disabled>
+                    Vyberte kategóriu
+                  </option>
+                  {FIRM_EXPENSE_CATEGORIES.map((category) => (
+                    <option key={category} value={category}>
+                      {category}
+                    </option>
+                  ))}
+                </Select>
               </FormField>
               <FormField label="Dátum" htmlFor="date">
                 <Input
