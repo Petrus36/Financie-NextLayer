@@ -149,6 +149,7 @@ export default async function StatisticsPage({
                 { label: "Mesačná údržba", value: stats.maintenanceRevenue },
                 { label: "Mesačné zákazky", value: stats.retainerRevenue },
                 { label: "Zaplatené faktúry", value: stats.invoiceRevenue },
+                { label: "Interné doklady", value: stats.internalDocumentIncome },
                 { label: "Ostatné príjmy firmy", value: stats.firmIncomeTotal },
               ]}
             />

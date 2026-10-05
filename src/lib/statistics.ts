@@ -45,7 +45,7 @@ export async function getStatistics(period: StatisticsPeriod) {
     prisma.firmExpense.findMany(),
     prisma.firmIncome.findMany({
       where: { date: { gte: start, lte: end } },
-      select: { amount: true, date: true, invoiceId: true },
+      select: { amount: true, date: true, invoiceId: true, category: true },
     }),
     prisma.maintenanceContract.findMany({
       where: { active: true },
@@ -107,14 +107,18 @@ export async function getStatistics(period: StatisticsPeriod) {
   const invoiceRevenue = firmIncomes
     .filter((i) => i.invoiceId)
     .reduce((sum, i) => sum + i.amount, 0);
+  const internalDocumentIncome = firmIncomes
+    .filter((i) => !i.invoiceId && i.category === "Interný doklad")
+    .reduce((sum, i) => sum + i.amount, 0);
   const firmIncomeTotal = firmIncomes
-    .filter((i) => !i.invoiceId)
+    .filter((i) => !i.invoiceId && i.category !== "Interný doklad")
     .reduce((sum, i) => sum + i.amount, 0);
   const totalIncome =
     totalProjectRevenue +
     maintenanceRevenue +
     retainerRevenue +
     invoiceRevenue +
+    internalDocumentIncome +
     firmIncomeTotal;
 
   const projectExpenseTotal = projectExpenses.reduce(
@@ -321,6 +325,7 @@ export async function getStatistics(period: StatisticsPeriod) {
     unpaidInvoiceCount: outstandingInvoices.length,
     margin,
     firmIncomeTotal,
+    internalDocumentIncome,
     projectExpenseTotal,
     firmExpenseTotal,
     expenseByCategory,
@@ -335,12 +340,17 @@ export async function getStatistics(period: StatisticsPeriod) {
 }
 
 export async function getDashboardOverview() {
+  const monthStart = startOfMonth(new Date());
+  const monthEnd = endOfMonth(new Date());
+
   const [
     clientCount,
     activeProjects,
     deliveredProjects,
     activeMaintenance,
     unpaidInvoices,
+    internalDocsThisMonth,
+    recentInternalDocs,
   ] = await Promise.all([
     prisma.client.count(),
     prisma.project.count({ where: { status: "ACTIVE" } }),
@@ -352,9 +362,25 @@ export async function getDashboardOverview() {
       orderBy: { dueAt: "asc" },
       take: 6,
     }),
+    prisma.internalDocument.findMany({
+      where: {
+        date: { gte: monthStart, lte: monthEnd },
+        countAsIncome: true,
+      },
+      select: { amount: true },
+    }),
+    prisma.internalDocument.findMany({
+      orderBy: { date: "desc" },
+      take: 5,
+      include: { client: { select: { id: true, name: true } } },
+    }),
   ]);
 
   const unpaidTotal = unpaidInvoices.reduce((s, i) => s + i.total, 0);
+  const internalDocumentIncomeThisMonth = internalDocsThisMonth.reduce(
+    (s, d) => s + d.amount,
+    0
+  );
 
   return {
     clientCount,
@@ -363,6 +389,8 @@ export async function getDashboardOverview() {
     activeMaintenance,
     unpaidInvoices,
     unpaidTotal,
+    internalDocumentIncomeThisMonth,
+    recentInternalDocs,
   };
 }
 

@@ -83,9 +83,9 @@ export default async function DashboardPage() {
           subtitle={`${stats.invoiceIssuedCount} vystavených tento mesiac`}
         />
         <StatCard
-          title="Odovzdané projekty"
-          value={String(stats.deliveredProjectsCount)}
-          subtitle={`${stats.activeMaintenanceCount} aktívnych údržieb`}
+          title="Interné doklady"
+          value={formatCurrency(overview.internalDocumentIncomeThisMonth)}
+          subtitle="V príjmoch tento mesiac"
         />
       </div>
 
@@ -111,6 +111,7 @@ export default async function DashboardPage() {
                 { label: "Mesačná údržba", value: stats.maintenanceRevenue },
                 { label: "Mesačné zákazky", value: stats.retainerRevenue },
                 { label: "Zaplatené faktúry", value: stats.invoiceRevenue },
+                { label: "Interné doklady", value: stats.internalDocumentIncome },
                 { label: "Ostatné príjmy firmy", value: stats.firmIncomeTotal },
               ]}
             />
@@ -189,6 +190,50 @@ export default async function DashboardPage() {
                 </Link>
               );
             })
+          )}
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>
+            Interné doklady
+            {overview.internalDocumentIncomeThisMonth > 0
+              ? ` · ${formatCurrency(overview.internalDocumentIncomeThisMonth)} tento mesiac`
+              : ""}
+          </CardTitle>
+          <Link href="/interne-doklady" className="text-sm text-brand hover:underline">
+            Všetky
+          </Link>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {overview.recentInternalDocs.length === 0 ? (
+            <div className="rounded-lg border border-dashed border-border px-4 py-8 text-center">
+              <p className="text-sm text-muted">Zatiaľ žiadne interné doklady.</p>
+              <Link
+                href="/interne-doklady"
+                className="mt-2 inline-block text-sm text-brand hover:underline"
+              >
+                Pridať interný doklad
+              </Link>
+            </div>
+          ) : (
+            overview.recentInternalDocs.map((doc) => (
+              <Link
+                key={doc.id}
+                href={`/clients/${doc.client.id}`}
+                className="flex items-center justify-between rounded-lg border border-border p-3 hover:bg-surface-elevated/30"
+              >
+                <div>
+                  <p className="text-sm font-medium text-zinc-100">{doc.description}</p>
+                  <p className="text-xs text-muted">
+                    {doc.client.name} · {formatDate(doc.date)}
+                    {doc.countAsIncome ? " · v príjmoch" : ""}
+                  </p>
+                </div>
+                <p className="text-sm font-medium text-brand">{formatCurrency(doc.amount)}</p>
+              </Link>
+            ))
           )}
         </CardContent>
       </Card>

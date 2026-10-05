@@ -1,9 +1,6 @@
-import { CreditCard, Banknote, Wallet, Scale, FileText } from "lucide-react";
+import { CreditCard, Banknote, Wallet, Scale } from "lucide-react";
 import { getOverallFinances } from "@/lib/firm-balance";
-import { listInternalDocuments } from "@/lib/internal-documents";
-import { updateFirmBalance, createInternalDocument } from "@/actions/finance";
-import { InternalDocumentItem } from "@/components/finance/internal-document-item";
-import { InternalDocumentCountAsIncomeField } from "@/components/finance/internal-document-count-as-income-field";
+import { updateFirmBalance } from "@/actions/finance";
 import { formatCurrency } from "@/lib/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -11,12 +8,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { FormField } from "@/components/ui/label";
 import { StatCard } from "@/components/ui/stat-card";
+import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 
 export default async function OverallFinancesPage() {
-  const [{ balance, totalLiquid, recorded, difference }, internalDocuments] =
-    await Promise.all([getOverallFinances(), listInternalDocuments()]);
+  const { balance, totalLiquid, recorded, difference } = await getOverallFinances();
 
   const lastUpdated = new Intl.DateTimeFormat("sk-SK", {
     day: "2-digit",
@@ -164,81 +161,25 @@ export default async function OverallFinancesPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <FileText className="h-4 w-4 text-brand" />
-              Interné doklady
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {internalDocuments.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted">
-                Zatiaľ žiadne interné doklady — napr. hotovostný príjem bez faktúry.
-              </p>
-            ) : (
-              <div className="space-y-2">
-                {internalDocuments.map((doc) => (
-                  <InternalDocumentItem
-                    key={doc.id}
-                    doc={{
-                      id: doc.id,
-                      description: doc.description,
-                      amount: doc.amount,
-                      date: doc.date.toISOString(),
-                      countAsIncome: doc.countAsIncome,
-                    }}
-                  />
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader className="pb-3">
-            <CardTitle>Interný doklad</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form action={createInternalDocument} className="space-y-3">
-              <FormField label="Item" htmlFor="description">
-                <Input
-                  id="description"
-                  name="description"
-                  required
-                  placeholder="Popis príjmu"
-                />
-              </FormField>
-              <div className="grid grid-cols-2 gap-3">
-                <FormField label="Suma" htmlFor="amount">
-                  <Input
-                    id="amount"
-                    name="amount"
-                    type="number"
-                    step="0.01"
-                    min="0.01"
-                    required
-                    placeholder="€"
-                  />
-                </FormField>
-                <FormField label="Dátum" htmlFor="date">
-                  <Input
-                    id="date"
-                    name="date"
-                    type="date"
-                    defaultValue={new Date().toISOString().slice(0, 10)}
-                  />
-                </FormField>
-              </div>
-              <InternalDocumentCountAsIncomeField defaultChecked />
-              <Button type="submit" className="w-full" variant="secondary">
-                Pridať
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-      </div>
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle className="flex items-center gap-2">
+            <Banknote className="h-4 w-4 text-brand" />
+            Interné doklady
+          </CardTitle>
+          <Link href="/interne-doklady">
+            <Button variant="secondary" size="sm">
+              Otvoriť
+            </Button>
+          </Link>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted">
+            Hotovostné príjmy od klientov — priradenie klienta, hotovosť, príjmy a
+            štatistiky spravujte na samostatnej stránke.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }

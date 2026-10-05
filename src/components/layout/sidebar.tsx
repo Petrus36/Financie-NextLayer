@@ -17,6 +17,7 @@ import {
   Settings,
   Menu,
   X,
+  Banknote,
   Briefcase,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ const navGroups = [
     label: "Financie",
     items: [
       { href: "/celkove-financie", label: "Celkové financie", icon: Wallet },
+      { href: "/interne-doklady", label: "Interné doklady", icon: Banknote },
       { href: "/expenses", label: "Výdavky firmy", icon: Receipt },
       { href: "/income", label: "Príjmy firmy", icon: TrendingUp },
     ],

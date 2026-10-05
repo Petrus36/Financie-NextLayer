@@ -9,6 +9,7 @@ import { StatCard } from "@/components/ui/stat-card";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { displayInvoiceStatus } from "@/lib/invoices";
 import { PROJECT_STAGE_LABEL, projectFinance } from "@/lib/projects";
+import { sumClientInternalPayments } from "@/lib/internal-documents";
 import { createInvoiceFromTemplate } from "@/actions/invoices";
 
 export default async function ClientDetailPage({
@@ -35,6 +36,15 @@ export default async function ClientDetailPage({
   });
 
   if (!client) notFound();
+
+  const [internalTotal, internalDocuments] = await Promise.all([
+    sumClientInternalPayments(id),
+    prisma.internalDocument.findMany({
+      where: { clientId: id },
+      orderBy: { date: "desc" },
+      take: 20,
+    }),
+  ]);
 
   const paidInvoices = client.invoices.filter((invoice) => invoice.status === "PAID");
   const openInvoices = client.invoices.filter(
@@ -97,14 +107,23 @@ export default async function ClientDetailPage({
           <Link href={`/projects/new?clientId=${id}`}>
             <Button variant="secondary">Nový projekt</Button>
           </Link>
+          <Link href={`/interne-doklady?clientId=${id}`}>
+            <Button variant="secondary">Interný doklad</Button>
+          </Link>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           title="Zaplatené nám"
           value={formatCurrency(paidTotal)}
           subtitle={`${paidInvoices.length} zaplatených faktúr`}
+          trend="up"
+        />
+        <StatCard
+          title="Interné platby"
+          value={formatCurrency(internalTotal)}
+          subtitle={`${internalDocuments.length} interných dokladov`}
           trend="up"
         />
         <StatCard
@@ -118,6 +137,51 @@ export default async function ClientDetailPage({
           subtitle="Všetky vystavené"
         />
       </div>
+
+      <Card>
+        <CardHeader className="flex flex-row items-center justify-between">
+          <CardTitle>Interné doklady</CardTitle>
+          <Link
+            href={`/interne-doklady?clientId=${id}`}
+            className="text-sm text-brand hover:underline"
+          >
+            Nový
+          </Link>
+        </CardHeader>
+        <CardContent>
+          {internalDocuments.length === 0 ? (
+            <p className="py-4 text-center text-sm text-muted">
+              Klient zatiaľ neplatil cez interný doklad.{" "}
+              <Link
+                href={`/interne-doklady?clientId=${id}`}
+                className="text-brand hover:underline"
+              >
+                Pridať
+              </Link>
+            </p>
+          ) : (
+            <div className="space-y-2">
+              {internalDocuments.map((doc) => (
+                <div
+                  key={doc.id}
+                  className="flex items-center justify-between rounded-lg border border-border p-3"
+                >
+                  <div>
+                    <p className="text-sm text-zinc-200">{doc.description}</p>
+                    <p className="text-xs text-muted">
+                      {formatDate(doc.date)}
+                      {doc.countAsIncome ? " · v príjmoch" : ""}
+                    </p>
+                  </div>
+                  <span className="text-sm font-medium text-brand">
+                    {formatCurrency(doc.amount)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader className="flex flex-row items-center justify-between">

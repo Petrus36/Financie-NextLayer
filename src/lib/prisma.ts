@@ -4,7 +4,7 @@ import { Pool } from "pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import { resolveDatabaseUrl } from "@/lib/env";
 
-const PRISMA_CLIENT_STAMP = 7;
+const PRISMA_CLIENT_STAMP = 8;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

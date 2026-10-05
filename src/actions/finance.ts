@@ -1,6 +1,7 @@
 "use server";
 
 import { startOfMonth } from "date-fns";
+import type { Prisma } from "@/generated/prisma/client";
 import { prisma } from "@/lib/prisma";
 import { retainerUnitAmount } from "@/lib/retainers";
 import { normalizeExpenseCategory } from "@/lib/expense-categories";
@@ -264,29 +265,46 @@ export async function deleteFirmIncome(id: string) {
 }
 
 function parseInternalDocumentFields(formData: FormData) {
+  const clientId = String(formData.get("clientId") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
   const amount = parseFloat(String(formData.get("amount") ?? ""));
   const dateStr = formData.get("date") as string;
   const date = dateStr ? new Date(dateStr) : new Date();
 
-  if (!description || isNaN(amount) || amount <= 0) {
-    throw new Error("Vyplňte popis a sumu");
+  if (!clientId || !description || isNaN(amount) || amount <= 0) {
+    throw new Error("Klient, popis a suma sú povinné");
   }
 
   const countAsIncome = formData.get("countAsIncome") === "on";
 
-  return { description, amount, date, countAsIncome };
+  return { clientId, description, amount, date, countAsIncome };
 }
 
-function revalidateInternalDocumentPaths() {
+function revalidateInternalDocumentPaths(clientId?: string) {
+  revalidatePath("/interne-doklady");
   revalidatePath("/celkove-financie");
   revalidatePath("/income");
   revalidatePath("/dashboard");
   revalidatePath("/statistics");
+  revalidatePath("/clients");
+  if (clientId) revalidatePath(`/clients/${clientId}`);
+}
+
+async function incomeDescriptionForInternalDoc(
+  tx: Prisma.TransactionClient,
+  clientId: string,
+  description: string
+) {
+  const client = await tx.client.findUnique({
+    where: { id: clientId },
+    select: { name: true },
+  });
+  const who = client?.name ?? "Klient";
+  return `Interný doklad (${who}): ${description}`;
 }
 
 export async function createInternalDocument(formData: FormData) {
-  const { description, amount, date, countAsIncome } =
+  const { clientId, description, amount, date, countAsIncome } =
     parseInternalDocumentFields(formData);
 
   await prisma.$transaction(async (tx) => {
@@ -294,7 +312,7 @@ export async function createInternalDocument(formData: FormData) {
     if (countAsIncome) {
       const income = await tx.firmIncome.create({
         data: {
-          description: `Interný doklad: ${description}`,
+          description: await incomeDescriptionForInternalDoc(tx, clientId, description),
           amount,
           category: "Interný doklad",
           date,
@@ -310,17 +328,18 @@ export async function createInternalDocument(formData: FormData) {
         date,
         countAsIncome,
         incomeId,
+        clientId,
       },
     });
 
     await adjustFirmCashInTransaction(tx, amount);
   });
 
-  revalidateInternalDocumentPaths();
+  revalidateInternalDocumentPaths(clientId);
 }
 
 export async function updateInternalDocument(id: string, formData: FormData) {
-  const { description, amount, date, countAsIncome } =
+  const { clientId, description, amount, date, countAsIncome } =
     parseInternalDocumentFields(formData);
   const doc = await prisma.internalDocument.findUnique({ where: { id } });
   if (!doc) {
@@ -328,14 +347,20 @@ export async function updateInternalDocument(id: string, formData: FormData) {
   }
 
   const cashDelta = amount - doc.amount;
+  const prevClientId = doc.clientId;
 
   await prisma.$transaction(async (tx) => {
     let incomeId: string | null = doc.incomeId;
+    const incomeDescription = await incomeDescriptionForInternalDoc(
+      tx,
+      clientId,
+      description
+    );
 
     if (countAsIncome && !incomeId) {
       const income = await tx.firmIncome.create({
         data: {
-          description: `Interný doklad: ${description}`,
+          description: incomeDescription,
           amount,
           category: "Interný doklad",
           date,
@@ -346,7 +371,7 @@ export async function updateInternalDocument(id: string, formData: FormData) {
       await tx.firmIncome.update({
         where: { id: incomeId },
         data: {
-          description: `Interný doklad: ${description}`,
+          description: incomeDescription,
           amount,
           date,
           category: "Interný doklad",
@@ -365,6 +390,7 @@ export async function updateInternalDocument(id: string, formData: FormData) {
         date,
         countAsIncome,
         incomeId,
+        clientId,
       },
     });
 
@@ -373,7 +399,8 @@ export async function updateInternalDocument(id: string, formData: FormData) {
     }
   });
 
-  revalidateInternalDocumentPaths();
+  revalidateInternalDocumentPaths(clientId);
+  if (prevClientId !== clientId) revalidateInternalDocumentPaths(prevClientId);
 }
 
 export async function deleteInternalDocument(id: string) {
@@ -388,7 +415,7 @@ export async function deleteInternalDocument(id: string) {
     await adjustFirmCashInTransaction(tx, -doc.amount);
   });
 
-  revalidateInternalDocumentPaths();
+  revalidateInternalDocumentPaths(doc.clientId);
 }
 
 export async function toggleMaintenance(id: string, active: boolean) {

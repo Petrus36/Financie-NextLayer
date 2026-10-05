@@ -36,6 +36,7 @@ model Client {
   retainers         MonthlyRetainer[]
   invoices          Invoice[]
   invoiceTemplates  InvoiceTemplate[]
+  internalDocuments InternalDocument[]
 }
 
 model Project {
@@ -221,6 +222,9 @@ model InternalDocument {
   date          DateTime @default(now())
   countAsIncome Boolean  @default(false)
   createdAt     DateTime @default(now())
+
+  clientId String
+  client   Client @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   incomeId String?     @unique
   income   FirmIncome? @relation(fields: [incomeId], references: [id], onDelete: SetNull)

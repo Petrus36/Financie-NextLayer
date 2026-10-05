@@ -1,17 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { FormField } from "@/components/ui/label";
 import { DeleteItemButton } from "@/components/ui/delete-item-button";
+import { InternalDocumentFormFields } from "@/components/finance/internal-document-form-fields";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import {
   deleteInternalDocument,
   updateInternalDocument,
 } from "@/actions/finance";
-import { InternalDocumentCountAsIncomeField } from "@/components/finance/internal-document-count-as-income-field";
 
 export type InternalDocumentItemData = {
   id: string;
@@ -19,7 +18,11 @@ export type InternalDocumentItemData = {
   amount: number;
   date: string;
   countAsIncome: boolean;
+  clientId: string;
+  clientName: string;
 };
+
+type ClientOption = { id: string; name: string; company: string | null };
 
 function toDateInputValue(isoDate: string) {
   const d = new Date(isoDate);
@@ -29,7 +32,13 @@ function toDateInputValue(isoDate: string) {
   return `${y}-${m}-${day}`;
 }
 
-export function InternalDocumentItem({ doc }: { doc: InternalDocumentItemData }) {
+export function InternalDocumentItem({
+  doc,
+  clients,
+}: {
+  doc: InternalDocumentItemData;
+  clients: ClientOption[];
+}) {
   const [editing, setEditing] = useState(false);
   const updateAction = updateInternalDocument.bind(null, doc.id);
 
@@ -42,39 +51,14 @@ export function InternalDocumentItem({ doc }: { doc: InternalDocumentItemData })
         }}
         className="space-y-3 rounded-lg border border-brand/30 bg-surface-elevated/50 p-3"
       >
-        <FormField label="Item" htmlFor={`description-${doc.id}`}>
-          <Input
-            id={`description-${doc.id}`}
-            name="description"
-            required
-            defaultValue={doc.description}
-          />
-        </FormField>
-        <div className="grid grid-cols-2 gap-3">
-          <FormField label="Suma" htmlFor={`amount-${doc.id}`}>
-            <Input
-              id={`amount-${doc.id}`}
-              name="amount"
-              type="number"
-              step="0.01"
-              min="0.01"
-              required
-              defaultValue={doc.amount}
-            />
-          </FormField>
-          <FormField label="Dátum" htmlFor={`date-${doc.id}`}>
-            <Input
-              id={`date-${doc.id}`}
-              name="date"
-              type="date"
-              required
-              defaultValue={toDateInputValue(doc.date)}
-            />
-          </FormField>
-        </div>
-        <InternalDocumentCountAsIncomeField
-          idSuffix={`-${doc.id}`}
-          defaultChecked={doc.countAsIncome}
+        <InternalDocumentFormFields
+          clients={clients}
+          defaultClientId={doc.clientId}
+          idPrefix={`-${doc.id}`}
+          defaultDescription={doc.description}
+          defaultAmount={doc.amount}
+          defaultDate={toDateInputValue(doc.date)}
+          defaultCountAsIncome={doc.countAsIncome}
         />
         <div className="flex flex-wrap gap-2">
           <Button type="submit" size="sm">
@@ -93,6 +77,10 @@ export function InternalDocumentItem({ doc }: { doc: InternalDocumentItemData })
       <div>
         <p className="text-sm text-zinc-200">{doc.description}</p>
         <p className="text-xs text-muted">
+          <Link href={`/clients/${doc.clientId}`} className="text-brand hover:underline">
+            {doc.clientName}
+          </Link>
+          {" · "}
           {formatDate(doc.date)}
           {doc.countAsIncome ? " · v príjmoch" : ""}
         </p>
