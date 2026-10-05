@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Mail, Phone, Building2 } from "lucide-react";
@@ -6,18 +7,37 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { StatCard } from "@/components/ui/stat-card";
+import { PeriodFilter } from "@/components/dashboard/period-filter";
 import { formatCurrency, formatDate } from "@/lib/utils";
+import {
+  parseStatisticsPeriod,
+  getPeriodBounds,
+  formatPeriodLabel,
+} from "@/lib/statistics-period";
 import { displayInvoiceStatus } from "@/lib/invoices";
 import { PROJECT_STAGE_LABEL, projectFinance } from "@/lib/projects";
 import { sumClientInternalPayments } from "@/lib/internal-documents";
+import { getClientPeriodEconomics } from "@/lib/client-economics";
 import { createInvoiceFromTemplate } from "@/actions/invoices";
 
 export default async function ClientDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{
+    view?: string;
+    year?: string;
+    month?: string;
+    from?: string;
+    to?: string;
+  }>;
 }) {
   const { id } = await params;
+  const periodParams = await searchParams;
+  const period = parseStatisticsPeriod(periodParams);
+  const { start, end } = getPeriodBounds(period);
+  const periodLabel = formatPeriodLabel(period, start, end);
 
   const client = await prisma.client.findUnique({
     where: { id },
@@ -37,14 +57,23 @@ export default async function ClientDetailPage({
 
   if (!client) notFound();
 
-  const [internalTotal, internalDocuments] = await Promise.all([
+  const [internalTotal, internalDocuments, economics] = await Promise.all([
     sumClientInternalPayments(id),
     prisma.internalDocument.findMany({
       where: { clientId: id },
       orderBy: { date: "desc" },
       take: 20,
     }),
+    getClientPeriodEconomics(id, start, end),
   ]);
+
+  const year =
+    period.mode === "month" || period.mode === "year"
+      ? period.year
+      : new Date().getFullYear();
+  const month = period.mode === "month" ? period.month : undefined;
+  const from = period.mode === "custom" ? periodParams.from : undefined;
+  const to = period.mode === "custom" ? periodParams.to : undefined;
 
   const paidInvoices = client.invoices.filter((invoice) => invoice.status === "PAID");
   const openInvoices = client.invoices.filter(
@@ -110,20 +139,131 @@ export default async function ClientDetailPage({
           <Link href={`/interne-doklady?clientId=${id}`}>
             <Button variant="secondary">Interný doklad</Button>
           </Link>
+          <Link href={`/expenses?clientId=${id}`}>
+            <Button variant="secondary">Výdavok pre klienta</Button>
+          </Link>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-muted">Prehľad podľa obdobia — {periodLabel}</p>
+        <Suspense fallback={null}>
+          <PeriodFilter
+            basePath={`/clients/${id}`}
+            view={period.mode}
+            year={year}
+            month={month}
+            from={from}
+            to={to}
+          />
+        </Suspense>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
-          title="Zaplatené nám"
-          value={formatCurrency(paidTotal)}
-          subtitle={`${paidInvoices.length} zaplatených faktúr`}
+          title="Príjmy od klienta"
+          value={formatCurrency(economics.incomeTotal)}
+          subtitle={`Faktúry ${formatCurrency(economics.invoiceIncome)} · interné ${formatCurrency(economics.internalIncome)}`}
           trend="up"
         />
         <StatCard
-          title="Interné platby"
+          title="Náklady na klienta"
+          value={formatCurrency(economics.costTotal)}
+          subtitle={`Firma ${formatCurrency(economics.firmExpenseTotal)} · projekty ${formatCurrency(economics.projectExpenseTotal)}`}
+          trend="down"
+        />
+        <StatCard
+          title="Bilancia obdobia"
+          value={formatCurrency(economics.balance)}
+          subtitle={economics.balance >= 0 ? "Plus" : "Mínus"}
+          trend={economics.balance >= 0 ? "up" : "down"}
+        />
+        <StatCard
+          title="Interné platby celkom"
           value={formatCurrency(internalTotal)}
-          subtitle={`${internalDocuments.length} interných dokladov`}
+          subtitle={`${internalDocuments.length} dokladov (všetky obdobia)`}
+        />
+      </div>
+
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader className="flex flex-row items-center justify-between">
+            <CardTitle>Výdavky firmy ({periodLabel})</CardTitle>
+            <Link
+              href={`/expenses?clientId=${id}`}
+              className="text-sm text-brand hover:underline"
+            >
+              Pridať
+            </Link>
+          </CardHeader>
+          <CardContent>
+            {economics.firmExpensesInPeriod.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted">
+                V tomto období žiadne výdavky firmy priradené tomuto klientovi.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {economics.firmExpensesInPeriod.map(({ expense, amountInPeriod }) => (
+                  <div
+                    key={expense.id}
+                    className="flex items-center justify-between rounded-lg border border-border p-3"
+                  >
+                    <div>
+                      <p className="text-sm text-zinc-200">{expense.description}</p>
+                      <p className="text-xs text-muted">
+                        {formatDate(expense.date)}
+                        {expense.category && ` · ${expense.category}`}
+                        {expense.type === "MONTHLY" ? " · mesačne" : ""}
+                      </p>
+                    </div>
+                    <span className="text-sm font-medium text-red-400">
+                      -{formatCurrency(amountInPeriod)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Výdavky projektov ({periodLabel})</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {economics.projectExpenses.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted">
+                V tomto období žiadne výdavky na projektoch klienta.
+              </p>
+            ) : (
+              <div className="space-y-2">
+                {economics.projectExpenses.map((expense) => (
+                  <div
+                    key={expense.id}
+                    className="flex items-center justify-between rounded-lg border border-border p-3"
+                  >
+                    <div>
+                      <p className="text-sm text-zinc-200">{expense.description}</p>
+                      <p className="text-xs text-muted">
+                        {expense.project.title} · {formatDate(expense.date)}
+                      </p>
+                    </div>
+                    <span className="text-sm font-medium text-red-400">
+                      -{formatCurrency(expense.amount)}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatCard
+          title="Zaplatené nám (všetky faktúry)"
+          value={formatCurrency(paidTotal)}
+          subtitle={`${paidInvoices.length} zaplatených`}
           trend="up"
         />
         <StatCard

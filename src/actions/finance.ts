@@ -193,6 +193,8 @@ export async function createFirmExpense(formData: FormData) {
   const type = formData.get("type") as "ONE_TIME" | "MONTHLY";
   const category = normalizeExpenseCategory(formData.get("category") as string);
   const dateStr = formData.get("date") as string;
+  const clientIdRaw = String(formData.get("clientId") ?? "").trim();
+  const clientId = clientIdRaw || null;
 
   if (!description?.trim() || isNaN(amount)) {
     throw new Error("Popis a suma sú povinné");
@@ -208,15 +210,25 @@ export async function createFirmExpense(formData: FormData) {
       type: type || "ONE_TIME",
       category,
       date: dateStr ? new Date(dateStr) : new Date(),
+      clientId,
     },
   });
 
   revalidatePath("/expenses");
   revalidatePath("/dashboard");
   revalidatePath("/statistics");
+  if (clientId) revalidatePath(`/clients/${clientId}`);
+}
+
+function revalidateFirmExpenseClientPaths(clientId: string | null | undefined) {
+  if (clientId) revalidatePath(`/clients/${clientId}`);
 }
 
 export async function toggleFirmExpense(id: string, active: boolean) {
+  const expense = await prisma.firmExpense.findUnique({
+    where: { id },
+    select: { clientId: true },
+  });
   await prisma.firmExpense.update({
     where: { id },
     data: { active },
@@ -224,13 +236,19 @@ export async function toggleFirmExpense(id: string, active: boolean) {
 
   revalidatePath("/expenses");
   revalidatePath("/dashboard");
+  revalidateFirmExpenseClientPaths(expense?.clientId);
 }
 
 export async function deleteFirmExpense(id: string) {
+  const expense = await prisma.firmExpense.findUnique({
+    where: { id },
+    select: { clientId: true },
+  });
   await prisma.firmExpense.delete({ where: { id } });
   revalidatePath("/expenses");
   revalidatePath("/dashboard");
   revalidatePath("/statistics");
+  revalidateFirmExpenseClientPaths(expense?.clientId);
 }
 
 export async function createFirmIncome(formData: FormData) {

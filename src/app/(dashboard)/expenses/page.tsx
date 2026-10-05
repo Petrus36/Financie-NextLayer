@@ -1,5 +1,7 @@
 import { Suspense } from "react";
+import Link from "next/link";
 import { prisma } from "@/lib/prisma";
+import { listClientsForExpenseForm } from "@/lib/client-economics";
 import {
   createFirmExpense,
   toggleFirmExpense,
@@ -26,6 +28,7 @@ import { DeleteItemButton } from "@/components/ui/delete-item-button";
 import { ToggleActiveButton } from "@/components/ui/toggle-active-button";
 import { FinanceListFilters } from "@/components/dashboard/finance-list-filters";
 import { FIRM_EXPENSE_CATEGORIES } from "@/lib/expense-categories";
+import { ClientSelectField } from "@/components/clients/client-select-field";
 import type { ExpenseType } from "@/generated/prisma/client";
 
 export default async function ExpensesPage({
@@ -39,6 +42,7 @@ export default async function ExpensesPage({
     to?: string;
     q?: string;
     type?: string;
+    clientId?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -58,7 +62,9 @@ export default async function ExpensesPage({
 
   const allExpenses = await prisma.firmExpense.findMany({
     orderBy: { date: "desc" },
+    include: { client: { select: { id: true, name: true } } },
   });
+  const clients = await listClientsForExpenseForm();
 
   const expenses = allExpenses.filter((expense) => {
     if (!expenseMatchesPeriod(expense, start, end)) return false;
@@ -154,6 +160,17 @@ export default async function ExpensesPage({
                         <p className="text-xs text-muted">
                           {formatDate(expense.date)}
                           {expense.category && ` · ${expense.category}`}
+                          {expense.client && (
+                            <>
+                              {" · "}
+                              <Link
+                                href={`/clients/${expense.client.id}`}
+                                className="text-brand hover:underline"
+                              >
+                                {expense.client.name}
+                              </Link>
+                            </>
+                          )}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
@@ -232,6 +249,12 @@ export default async function ExpensesPage({
                   defaultValue={new Date().toISOString().split("T")[0]}
                 />
               </FormField>
+              <ClientSelectField
+                clients={clients}
+                label="Klient (voliteľné)"
+                optional
+                defaultValue={params.clientId}
+              />
               <Button type="submit" className="w-full" variant="secondary">
                 Pridať výdavok
               </Button>
