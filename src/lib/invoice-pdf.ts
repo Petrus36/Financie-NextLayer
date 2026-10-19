@@ -75,6 +75,55 @@ function draw(
   page.drawText(text, { x, y, size, font, color });
 }
 
+/** Wrap item description to fit the table column (by width, not character count). */
+function wrapTextToWidth(
+  font: PDFFont,
+  text: string,
+  size: number,
+  maxWidth: number
+): string[] {
+  const trimmed = text.trim();
+  if (!trimmed) return [""];
+  if (font.widthOfTextAtSize(trimmed, size) <= maxWidth) return [trimmed];
+
+  const lines: string[] = [];
+  let current = "";
+
+  const pushWord = (word: string) => {
+    if (current) {
+      lines.push(current);
+      current = "";
+    }
+    if (font.widthOfTextAtSize(word, size) <= maxWidth) {
+      current = word;
+      return;
+    }
+    let chunk = "";
+    for (const char of word) {
+      const next = chunk + char;
+      if (font.widthOfTextAtSize(next, size) <= maxWidth) {
+        chunk = next;
+      } else {
+        if (chunk) lines.push(chunk);
+        chunk = char;
+      }
+    }
+    current = chunk;
+  };
+
+  for (const word of trimmed.split(/\s+/)) {
+    if (!word) continue;
+    const candidate = current ? `${current} ${word}` : word;
+    if (font.widthOfTextAtSize(candidate, size) <= maxWidth) {
+      current = candidate;
+    } else {
+      pushWord(word);
+    }
+  }
+  if (current) lines.push(current);
+  return lines.length > 0 ? lines : [trimmed];
+}
+
 export async function buildInvoicePdf(data: InvoicePdfData) {
   const fontsDir = path.join(process.cwd(), "src/lib/fonts");
   const assetsDir = path.join(process.cwd(), "src/lib/invoice-assets");
@@ -180,17 +229,26 @@ export async function buildInvoicePdf(data: InvoicePdfData) {
   draw(page, "Jedn. cena", 448 - bold.widthOfTextAtSize("Jedn. cena", 8), y, bold, 8, muted);
   draw(page, "Celkom", right - 14 - bold.widthOfTextAtSize("Celkom", 8), y, bold, 8, muted);
 
+  const descriptionMaxWidth = 330 - (left + 14);
+  const descriptionLineHeight = 13;
+
   y -= 24;
   for (const item of data.items) {
     const amount = item.quantity * item.unitPrice;
-    draw(page, item.description.slice(0, 42), left + 14, y, font, 10);
+    const descLines = wrapTextToWidth(font, item.description, 10, descriptionMaxWidth);
+    const rowHeight = Math.max(18, descLines.length * descriptionLineHeight);
+
+    descLines.forEach((line, lineIndex) => {
+      draw(page, line, left + 14, y - lineIndex * descriptionLineHeight, font, 10);
+    });
+
     const qty = String(item.quantity);
     draw(page, qty, 360 - font.widthOfTextAtSize(qty, 10) / 2, y, font, 10);
     const unitPrice = money(item.unitPrice);
     const amountText = money(amount);
     draw(page, unitPrice, 448 - font.widthOfTextAtSize(unitPrice, 10), y, font, 10);
     draw(page, amountText, right - 14 - font.widthOfTextAtSize(amountText, 10), y, font, 10);
-    y -= 18;
+    y -= rowHeight;
   }
 
   y -= 22;
