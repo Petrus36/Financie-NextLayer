@@ -195,6 +195,8 @@ export async function createFirmExpense(formData: FormData) {
   const dateStr = formData.get("date") as string;
   const clientIdRaw = String(formData.get("clientId") ?? "").trim();
   const clientId = clientIdRaw || null;
+  const teamMemberIdRaw = String(formData.get("teamMemberId") ?? "").trim();
+  const teamMemberId = teamMemberIdRaw || null;
 
   if (!description?.trim() || isNaN(amount)) {
     throw new Error("Popis a suma sú povinné");
@@ -211,23 +213,33 @@ export async function createFirmExpense(formData: FormData) {
       category,
       date: dateStr ? new Date(dateStr) : new Date(),
       clientId,
+      teamMemberId,
     },
   });
 
   revalidatePath("/expenses");
   revalidatePath("/dashboard");
   revalidatePath("/statistics");
+  revalidatePath("/team");
   if (clientId) revalidatePath(`/clients/${clientId}`);
+  if (teamMemberId) revalidatePath(`/team/${teamMemberId}`);
 }
 
-function revalidateFirmExpenseClientPaths(clientId: string | null | undefined) {
-  if (clientId) revalidatePath(`/clients/${clientId}`);
+function revalidateFirmExpenseRelatedPaths(expense: {
+  clientId: string | null;
+  teamMemberId?: string | null;
+}) {
+  if (expense.clientId) revalidatePath(`/clients/${expense.clientId}`);
+  if (expense.teamMemberId) {
+    revalidatePath(`/team/${expense.teamMemberId}`);
+    revalidatePath("/team");
+  }
 }
 
 export async function toggleFirmExpense(id: string, active: boolean) {
   const expense = await prisma.firmExpense.findUnique({
     where: { id },
-    select: { clientId: true },
+    select: { clientId: true, teamMemberId: true },
   });
   await prisma.firmExpense.update({
     where: { id },
@@ -236,19 +248,19 @@ export async function toggleFirmExpense(id: string, active: boolean) {
 
   revalidatePath("/expenses");
   revalidatePath("/dashboard");
-  revalidateFirmExpenseClientPaths(expense?.clientId);
+  if (expense) revalidateFirmExpenseRelatedPaths(expense);
 }
 
 export async function deleteFirmExpense(id: string) {
   const expense = await prisma.firmExpense.findUnique({
     where: { id },
-    select: { clientId: true },
+    select: { clientId: true, teamMemberId: true },
   });
   await prisma.firmExpense.delete({ where: { id } });
   revalidatePath("/expenses");
   revalidatePath("/dashboard");
   revalidatePath("/statistics");
-  revalidateFirmExpenseClientPaths(expense?.clientId);
+  if (expense) revalidateFirmExpenseRelatedPaths(expense);
 }
 
 export async function createFirmIncome(formData: FormData) {

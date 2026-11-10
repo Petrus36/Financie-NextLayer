@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { Card } from "@/components/ui/card";
 
 interface StatCardProps {
   title: string;
@@ -42,18 +43,5 @@ export function StatCard({
         )}
       </div>
     </Card>
-  );
-}
-
-function Card({ className, children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <div
-      className={cn(
-        "rounded-xl border border-border bg-surface-elevated/80 backdrop-blur-sm",
-        className
-      )}
-    >
-      {children}
-    </div>
   );
 }

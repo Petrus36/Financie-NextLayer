@@ -19,6 +19,7 @@ import {
   X,
   Banknote,
   Briefcase,
+  UsersRound,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { signOut } from "next-auth/react";
@@ -46,6 +47,7 @@ const navGroups = [
     label: "Firma",
     items: [
       { href: "/clients", label: "Klienti", icon: Users },
+      { href: "/team", label: "Tím", icon: UsersRound },
       { href: "/bills", label: "Doklady", icon: FileStack },
       { href: "/settings", label: "Nastavenia", icon: Settings },
     ],
@@ -74,8 +76,8 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
                   className={cn(
                     "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors",
                     isActive
-                      ? "bg-brand-muted text-brand"
-                      : "text-muted hover:bg-surface-elevated hover:text-zinc-100"
+                      ? "border border-white/10 bg-white/10 text-brand shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-md"
+                      : "text-muted hover:bg-white/[0.06] hover:text-zinc-100"
                   )}
                 >
                   <item.icon className="h-4 w-4" />
@@ -95,7 +97,7 @@ export function Sidebar() {
 
   return (
     <>
-      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-black/90 px-4 backdrop-blur-xl lg:hidden">
+      <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b border-white/15 bg-white/[0.1] px-4 shadow-[inset_0_1px_0_rgba(255,255,255,0.12)] backdrop-blur-2xl backdrop-saturate-150 lg:hidden">
         <div className="flex items-center gap-3">
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-brand">
             <Layers className="h-4 w-4 text-black" />
@@ -105,7 +107,7 @@ export function Sidebar() {
         <button
           type="button"
           onClick={() => setOpen((value) => !value)}
-          className="rounded-lg p-2 text-zinc-300 hover:bg-surface-elevated"
+          className="rounded-lg p-2 text-zinc-300 hover:bg-white/[0.08]"
           aria-label={open ? "Zavrieť menu" : "Otvoriť menu"}
         >
           {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
@@ -115,7 +117,7 @@ export function Sidebar() {
       {open && (
         <button
           type="button"
-          className="fixed inset-0 z-40 bg-black/60 lg:hidden"
+          className="fixed inset-0 z-40 bg-black/50 backdrop-blur-sm lg:hidden"
           onClick={() => setOpen(false)}
           aria-label="Zavrieť menu"
         />
@@ -123,11 +125,11 @@ export function Sidebar() {
 
       <aside
         className={cn(
-          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-border bg-black/95 backdrop-blur-xl transition-transform lg:translate-x-0",
+          "fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-white/15 bg-gradient-to-b from-white/[0.12] to-white/[0.04] shadow-[inset_-1px_0_0_rgba(255,255,255,0.1)] backdrop-blur-2xl backdrop-saturate-150 transition-transform lg:translate-x-0",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >
-        <div className="flex h-16 items-center gap-3 border-b border-border px-6">
+        <div className="flex h-16 items-center gap-3 border-b border-white/10 px-6">
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-brand">
             <Layers className="h-5 w-5 text-black" />
           </div>
@@ -139,10 +141,10 @@ export function Sidebar() {
 
         <NavLinks onNavigate={() => setOpen(false)} />
 
-        <div className="border-t border-border p-4">
+        <div className="border-t border-white/10 p-4">
           <button
             onClick={() => signOut({ callbackUrl: "/login" })}
-            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-surface-elevated hover:text-red-400"
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium text-muted transition-colors hover:bg-white/[0.06] hover:text-red-400"
           >
             <LogOut className="h-4 w-4" />
             Odhlásiť sa

@@ -29,25 +29,53 @@ export function buildPayBySquareQrPayload(options: {
   beneficiaryName: string;
   paymentNote?: string;
 }) {
+  return buildOpenPaymentQrPayload({
+    iban: options.iban,
+    bic: options.bic,
+    beneficiaryName: options.beneficiaryName,
+    amount: options.amount,
+    dueAt: options.dueAt,
+    variableSymbol: variableSymbol(options.invoiceNumber),
+    invoiceId: options.invoiceNumber.replace(/\s/g, "").slice(0, 10),
+    paymentNote:
+      options.paymentNote?.slice(0, 140) ??
+      `Faktura ${options.invoiceNumber}`.slice(0, 140),
+  });
+}
+
+/**
+ * Pay by Square QR for team / supplier payouts.
+ * Omit amount so the bank app asks you to type it after scanning.
+ */
+export function buildOpenPaymentQrPayload(options: {
+  iban: string;
+  bic?: string | null;
+  beneficiaryName: string;
+  amount?: number | null;
+  dueAt?: Date;
+  variableSymbol?: string;
+  invoiceId?: string;
+  paymentNote?: string;
+}) {
   const iban = normalizeIban(options.iban);
   if (!iban) return null;
 
   const bic = options.bic?.replace(/\s+/g, "").toUpperCase();
-  const invoiceId = options.invoiceNumber.replace(/\s/g, "").slice(0, 10);
-  const vs = variableSymbol(options.invoiceNumber);
+  const amount =
+    options.amount != null && !Number.isNaN(options.amount) && options.amount > 0
+      ? Math.round(options.amount * 100) / 100
+      : undefined;
 
   return encode({
-    invoiceId: invoiceId || undefined,
+    invoiceId: options.invoiceId || undefined,
     payments: [
       {
         type: PaymentOptions.PaymentOrder,
-        amount: Math.round(options.amount * 100) / 100,
+        ...(amount != null ? { amount } : {}),
         currencyCode: "EUR",
-        paymentDueDate: formatPayBySquareDate(options.dueAt),
-        variableSymbol: vs,
-        paymentNote:
-          options.paymentNote?.slice(0, 140) ??
-          `Faktura ${options.invoiceNumber}`.slice(0, 140),
+        paymentDueDate: formatPayBySquareDate(options.dueAt ?? new Date()),
+        variableSymbol: options.variableSymbol,
+        paymentNote: options.paymentNote?.slice(0, 140),
         bankAccounts: [
           {
             iban,

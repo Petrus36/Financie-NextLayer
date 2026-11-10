@@ -1,42 +1,65 @@
 @import "tailwindcss";
 
 :root {
-  --background: #000000;
   --foreground: #fafafa;
   --brand: #baff57;
   --brand-hover: #a3e84a;
-  --brand-muted: rgba(186, 255, 87, 0.12);
-  --surface: #0a0a0a;
-  --surface-elevated: #111111;
-  --border: #1a1a1a;
-  --border-strong: #2a2a2a;
-  --muted: #888888;
+  --brand-muted: rgba(186, 255, 87, 0.18);
+  --surface: rgba(255, 255, 255, 0.06);
+  --surface-elevated: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.14);
+  --border-strong: rgba(255, 255, 255, 0.22);
+  --muted: #a8a8b6;
+  --glass-shadow: 0 12px 40px rgba(0, 0, 0, 0.35);
+  --glass-inset: inset 0 1px 0 rgba(255, 255, 255, 0.18);
 }
 
 @theme inline {
-  --color-background: var(--background);
+  --color-background: transparent;
   --color-foreground: var(--foreground);
   --color-brand: #baff57;
   --color-brand-hover: #a3e84a;
-  --color-brand-muted: rgba(186, 255, 87, 0.12);
-  --color-surface: #0a0a0a;
-  --color-surface-elevated: #111111;
-  --color-border: #1a1a1a;
-  --color-border-strong: #2a2a2a;
-  --color-muted: #888888;
+  --color-brand-muted: rgba(186, 255, 87, 0.18);
+  --color-surface: rgba(255, 255, 255, 0.06);
+  --color-surface-elevated: rgba(255, 255, 255, 0.1);
+  --color-border: rgba(255, 255, 255, 0.14);
+  --color-border-strong: rgba(255, 255, 255, 0.22);
+  --color-muted: #a8a8b6;
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
+html {
+  min-height: 100%;
+  background: transparent;
+}
+
 body {
-  background: var(--background);
+  position: relative;
+  min-height: 100%;
+  background: transparent;
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
 }
 
+@utility glass-panel {
+  border-radius: 1rem;
+  border-width: 1px;
+  border-color: rgba(255, 255, 255, 0.16);
+  background-image: linear-gradient(
+    135deg,
+    rgba(255, 255, 255, 0.14) 0%,
+    rgba(255, 255, 255, 0.04) 45%,
+    rgba(255, 255, 255, 0.08) 100%
+  );
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  backdrop-filter: blur(28px) saturate(160%);
+  box-shadow: var(--glass-shadow), var(--glass-inset);
+}
+
 * {
   scrollbar-width: thin;
-  scrollbar-color: #2a2a2a transparent;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
 ::selection {

@@ -4,7 +4,7 @@ import { Pool } from "pg";
 import { PrismaClient } from "@/generated/prisma/client";
 import { resolveDatabaseUrl } from "@/lib/env";
 
-const PRISMA_CLIENT_STAMP = 9;
+const PRISMA_CLIENT_STAMP = 10;
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;
@@ -37,7 +37,8 @@ function isPrismaClientFresh(client: PrismaClient): boolean {
     "internalDocument" in client &&
     "projectMember" in client &&
     "projectPayout" in client &&
-    "projectTask" in client
+    "projectTask" in client &&
+    "teamMember" in client
   );
 }
 

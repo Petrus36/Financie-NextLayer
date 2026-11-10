@@ -1,6 +1,7 @@
 export const FIRM_EXPENSE_CATEGORIES = [
   "Strihanie videa",
   "Grafika",
+  "Honoráre / tím",
   "Nájom",
   "Software",
   "Marketing",

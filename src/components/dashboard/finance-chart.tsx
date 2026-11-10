@@ -111,19 +111,19 @@ export function FinanceChart({ data }: { data: ChartData[] }) {
 
       <ResponsiveContainer width="100%" height={360}>
         <ComposedChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 8 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#1a1a1a" vertical={false} />
+          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.12)" vertical={false} />
           <XAxis
             dataKey="label"
             stroke="#666"
             fontSize={12}
             tickLine={false}
-            axisLine={{ stroke: "#2a2a2a" }}
+            axisLine={{ stroke: "rgba(255,255,255,0.15)" }}
           />
           <YAxis
-            stroke="#666"
+            stroke="#999"
             fontSize={12}
             tickLine={false}
-            axisLine={{ stroke: "#2a2a2a" }}
+            axisLine={{ stroke: "rgba(255,255,255,0.15)" }}
             tickFormatter={(v) =>
               new Intl.NumberFormat("sk-SK", {
                 notation: "compact",
@@ -131,7 +131,7 @@ export function FinanceChart({ data }: { data: ChartData[] }) {
               }).format(v)
             }
           />
-          <ReferenceLine y={0} stroke="#333" strokeDasharray="4 4" />
+          <ReferenceLine y={0} stroke="rgba(255,255,255,0.2)" strokeDasharray="4 4" />
           <Tooltip content={<CustomTooltip />} />
           <Bar dataKey="income" name="Príjmy" fill="#a1a1aa" radius={[4, 4, 0, 0]} maxBarSize={28} />
           <Bar dataKey="expenses" name="Výdavky" fill="#ef4444" radius={[4, 4, 0, 0]} maxBarSize={28} />

@@ -198,6 +198,26 @@ model FirmExpense {
 
   clientId String?
   client   Client? @relation(fields: [clientId], references: [id], onDelete: SetNull)
+
+  teamMemberId String?
+  teamMember   TeamMember? @relation(fields: [teamMemberId], references: [id], onDelete: SetNull)
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  name      String
+  role      String?
+  email     String?
+  phone     String?
+  notes     String?
+  iban      String?
+  bic       String?
+  bankName  String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  firmExpenses FirmExpense[]
 }
 
 enum ExpenseType {

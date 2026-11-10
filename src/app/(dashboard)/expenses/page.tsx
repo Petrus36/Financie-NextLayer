@@ -2,6 +2,7 @@ import { Suspense } from "react";
 import Link from "next/link";
 import { prisma } from "@/lib/prisma";
 import { listClientsForExpenseForm } from "@/lib/client-economics";
+import { listActiveTeamMembersForSelect } from "@/lib/team";
 import {
   createFirmExpense,
   toggleFirmExpense,
@@ -29,6 +30,7 @@ import { ToggleActiveButton } from "@/components/ui/toggle-active-button";
 import { FinanceListFilters } from "@/components/dashboard/finance-list-filters";
 import { FIRM_EXPENSE_CATEGORIES } from "@/lib/expense-categories";
 import { ClientSelectField } from "@/components/clients/client-select-field";
+import { TeamMemberSelectField } from "@/components/team/team-member-select-field";
 import type { ExpenseType } from "@/generated/prisma/client";
 
 export default async function ExpensesPage({
@@ -43,6 +45,7 @@ export default async function ExpensesPage({
     q?: string;
     type?: string;
     clientId?: string;
+    teamMemberId?: string;
   }>;
 }) {
   const params = await searchParams;
@@ -60,11 +63,17 @@ export default async function ExpensesPage({
   const from = period.mode === "custom" ? params.from : undefined;
   const to = period.mode === "custom" ? params.to : undefined;
 
-  const allExpenses = await prisma.firmExpense.findMany({
-    orderBy: { date: "desc" },
-    include: { client: { select: { id: true, name: true } } },
-  });
-  const clients = await listClientsForExpenseForm();
+  const [allExpenses, clients, teamMembers] = await Promise.all([
+    prisma.firmExpense.findMany({
+      orderBy: { date: "desc" },
+      include: {
+        client: { select: { id: true, name: true } },
+        teamMember: { select: { id: true, name: true } },
+      },
+    }),
+    listClientsForExpenseForm(),
+    listActiveTeamMembersForSelect(),
+  ]);
 
   const expenses = allExpenses.filter((expense) => {
     if (!expenseMatchesPeriod(expense, start, end)) return false;
@@ -73,6 +82,8 @@ export default async function ExpensesPage({
       !matchesTextSearch(searchQuery, [
         expense.description,
         expense.category,
+        expense.teamMember?.name,
+        expense.client?.name,
       ])
     ) {
       return false;
@@ -162,12 +173,23 @@ export default async function ExpensesPage({
                           {expense.category && ` · ${expense.category}`}
                           {expense.client && (
                             <>
-                              {" · "}
+                              {" · klient "}
                               <Link
                                 href={`/clients/${expense.client.id}`}
                                 className="text-brand hover:underline"
                               >
                                 {expense.client.name}
+                              </Link>
+                            </>
+                          )}
+                          {expense.teamMember && (
+                            <>
+                              {" · komu "}
+                              <Link
+                                href={`/team/${expense.teamMember.id}`}
+                                className="text-brand hover:underline"
+                              >
+                                {expense.teamMember.name}
                               </Link>
                             </>
                           )}
@@ -251,9 +273,14 @@ export default async function ExpensesPage({
               </FormField>
               <ClientSelectField
                 clients={clients}
-                label="Klient (voliteľné)"
+                label="Klient (voliteľné — pre koho to bolo)"
                 optional
                 defaultValue={params.clientId}
+              />
+              <TeamMemberSelectField
+                members={teamMembers}
+                label="Komu (voliteľné — člen tímu)"
+                defaultValue={params.teamMemberId}
               />
               <Button type="submit" className="w-full" variant="secondary">
                 Pridať výdavok
